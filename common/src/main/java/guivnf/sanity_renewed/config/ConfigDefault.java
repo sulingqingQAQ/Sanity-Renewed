@@ -15,6 +15,11 @@ public class ConfigDefault
     public final DoubleValue m_posMul;
     public final DoubleValue m_negMul;
 
+    public final DoubleValue m_baseRecovery;
+    public final IntValue m_baseRecoveryMinLight;
+    public final DoubleValue m_campfireRecovery;
+    public final DoubleValue m_campfireRadius;
+
     public final DoubleValue m_passive;
     public final DoubleValue m_raining;
     public final BooleanValue m_affectInWater;
@@ -94,7 +99,9 @@ public class ConfigDefault
         builder.comment(
                 "Sanity configuration",
                 "NOTE: all sanity values are measured in percentages (i.e. 40.0 is equal to 40% of sanity bar)",
-                "NOTE: each subsequent usage of an active source or item has its effectiveness multiplied by (timeSinceLastUsage / cooldown) (capped at 1.0)")
+                "NOTE: each subsequent usage of an active source or item has its effectiveness multiplied by (timeSinceLastUsage / cooldown) (capped at 1.0)",
+                "NOTE (Depression addon, phase 1): the keys under <passive> and <active> (and multiplayer / inner entity kill) are INACTIVE.",
+                "Sanity only recovers through the <recovery> section below, and through /sanity set|add (debug).")
                 .push("sanity");
 
         m_posMul = builder
@@ -104,6 +111,29 @@ public class ConfigDefault
                 .comment("For balancing purposes: the effectiveness of all negative sanity sources will be multiplied by this number")
                 .defineInRange("negative_multiplier", 1.0, Float.MIN_VALUE, Float.MAX_VALUE);
 
+        builder.comment(
+                "Depression addon, phase 1: the only sources that change sanity by themselves",
+                "Values are sanity points per second (100 = clear-headed). Numbers are phase-1 defaults and still need tuning in real play").push("recovery");
+
+        m_baseRecovery = builder
+                .comment(
+                        "Base recovery per second while it is safe: player alive and not creative/spectator, Depression state initialised,",
+                        "not in combat and not in a Depression player event, no PTSD contact countdown running, and bright enough (see base_min_light)",
+                        "Not applied when the Depression state is missing. 0 disables it")
+                .defineInRange("base_per_second", .05, 0.0, 100.0);
+        m_baseRecoveryMinLight = builder
+                .comment("Minimum local light level (inclusive, measured at the player's eyes) for the base recovery. TO BE TUNED")
+                .defineInRange("base_min_light", 10, 0, 15);
+        m_campfireRecovery = builder
+                .comment(
+                        "Recovery per second near a lit campfire (within <campfire_radius> blocks, with line of sight)",
+                        "Several campfires do not stack. Independent from the base recovery conditions. 0 disables it")
+                .defineInRange("campfire_per_second", .10, 0.0, 100.0);
+        m_campfireRadius = builder
+                .comment("Campfire reach in blocks")
+                .defineInRange("campfire_radius", 4.0, 0.5, 8.0);
+
+        builder.pop();
         builder.comment("Configuration for passive sanity sources").push("passive");
 
         m_passive = builder

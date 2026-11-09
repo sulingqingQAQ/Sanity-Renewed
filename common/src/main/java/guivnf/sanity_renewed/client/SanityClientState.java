@@ -34,6 +34,8 @@ public final class SanityClientState
     }
 
     private static final float PASSIVE_THRESHOLD = .0002f;
+    /** Slightly above the longest regular sync gap (one packet per 20 ticks, +1 for rounding). */
+    private static final int PASSIVE_STALE_TICKS = 30;
     private static final float BT_DELAY = 5f * 20;
 
     private final RandomSource rand = RandomSource.create();
@@ -102,7 +104,10 @@ public final class SanityClientState
         if (s == null) return;
 
         sanity = s.getSanity();
-        passiveIncrease = s.getPassiveIncrease();
+        // The server only sends on real change (at most once a second), so the passive arrow value is only
+        // trusted for a short while after a packet; once recovery stops, no more packets arrive.
+        int received = s.getClientReceivedTick();
+        passiveIncrease = received >= 0 && player.tickCount - received <= PASSIVE_STALE_TICKS ? s.getPassiveIncrease() : 0f;
         lastDelta = sanity - prevSanity;
 
         tickIndicator(dt);

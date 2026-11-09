@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## Unreleased - Depression addon, phase 1
+
+### Changed
+  - Now an addon that requires the Depression mod. Sanity is its own value, separate from Depression's mood and mental health (nothing is converted or written between them).
+  - This fork targets NeoForge 1.21.1 only; the upstream Fabric subproject is excluded from the build and its sources are left untouched.
+  - Sanity (0-100, 100 = clear-headed) is kept through death, respawn, dimension changes and relogging.
+  - Sanity is sent to the client only when it really changes, at most once a second (it used to be sent every tick). `/sanity set|add` update the client right away.
+  - Only two things raise sanity by themselves: a slow base recovery (+0.05/s) while it is calm and bright, and a lit campfire nearby (+0.10/s, several campfires do not stack).
+  - All other original sanity sources (passive and one-shot ones, including sleeping and the garland effect) are switched off. `/sanity set|add` still work.
+  - New shadow creatures no longer appear; the ones already in a world are left alone.
+
+### Added
+  - `/sanity get [targets]` prints the current sanity.
+  - Config section `sanity.recovery` (base rate, minimum light, campfire rate and radius).
+
+---
+
 ## 21.1.3 - 2026-08-24
 
 ### Added

@@ -16,6 +16,28 @@ public abstract class ConfigProxy
         return ConfigManager.proxyd2f("sanity.negative_multiplier", dim);
     }
 
+    /** Phase 1 base recovery, sanity points per second. */
+    public static float getBaseRecoveryPerSecond(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.recovery.base_per_second", dim);
+    }
+
+    public static int getBaseRecoveryMinLight(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.recovery.base_min_light", dim);
+    }
+
+    /** Phase 1 campfire recovery, sanity points per second. */
+    public static float getCampfireRecoveryPerSecond(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.recovery.campfire_per_second", dim);
+    }
+
+    public static float getCampfireRadius(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.recovery.campfire_radius", dim);
+    }
+
     public static float getPassive(ResourceLocation dim)
     {
         return ConfigManager.proxyd2f("sanity.passive.passive", dim);

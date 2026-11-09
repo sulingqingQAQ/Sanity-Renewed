@@ -103,12 +103,15 @@ See [license](https://raw.githubusercontent.com/croissantnova/SanityDescentIntoM
 
 <p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
 
-## Requirements: 
-Forge/Neoforge:
+## Requirements:
+This Depression addon fork currently targets **NeoForge 1.21.1 only**. The Fabric section below is retained as upstream reference and is not a supported addon target.
+
+NeoForge:
 * [**Architectury API**](https://www.curseforge.com/minecraft/mc-mods/architectury-api)
 * [**GeckoLib**](https://www.curseforge.com/minecraft/mc-mods/geckolib)
+* **Depression** (0.2.3+, this is a Depression addon; DepressionTianTian is optional)
 
-Fabric:
+Fabric (upstream reference only):
 * [**Architectury API**](https://www.curseforge.com/minecraft/mc-mods/architectury-api)
 * [**GeckoLib**](https://www.curseforge.com/minecraft/mc-mods/geckolib)
 * [**Forge Config API Port**](https://www.curseforge.com/minecraft/mc-mods/forge-config-api-port)

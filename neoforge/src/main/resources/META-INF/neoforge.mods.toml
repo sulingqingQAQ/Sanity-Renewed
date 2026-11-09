@@ -6,9 +6,9 @@ issueTrackerURL = "https://github.com/croissantnova/SanityDescentIntoMadness/iss
 [[mods]]
     modId = "sanity_renewed"
     version = "${version}"
-    displayName = "Sanity: Renewed"
+    displayName = "Sanity: Renewed (Depression Addon)"
     logoFile = "icon.png"
-    description = '''Brings the sanity mechanic from Don't Starve into Minecraft'''
+    description = '''Brings the sanity mechanic from Don't Starve into Minecraft. Addon for Depression: sanity is a separate value from Depression's mood and mental health, and requires the Depression mod.'''
     authors = "croissantnova, guivnf"
     credits = "toujourspareil, Zapsplat"
 
@@ -38,6 +38,13 @@ issueTrackerURL = "https://github.com/croissantnova/SanityDescentIntoMadness/iss
     type = "required"
     versionRange = "[4.7,)"
     ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.sanity_renewed]]
+    modId = "depression"
+    type = "required"
+    versionRange = "[0.2.3,)"
+    ordering = "AFTER"
     side = "BOTH"
 
 [[mixins]]

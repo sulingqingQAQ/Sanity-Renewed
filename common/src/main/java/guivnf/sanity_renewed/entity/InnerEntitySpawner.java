@@ -1,5 +1,6 @@
 package guivnf.sanity_renewed.entity;
 
+import guivnf.sanity_renewed.SanitySourceGate;
 import guivnf.sanity_renewed.capability.Sanity;
 import guivnf.sanity_renewed.capability.SanityHolder;
 import net.minecraft.core.BlockPos;
@@ -52,6 +53,10 @@ public final class InnerEntitySpawner
 
     public static boolean trySpawnForPlayer(ServerPlayer player)
     {
+        // Phase 1: no new inner entities (spawn height, retry cooldown and cache cleanup are phase 3 work)
+        if (!SanitySourceGate.INNER_ENTITY_SPAWNING)
+            return false;
+
         if (player == null || player.isCreative() || player.isSpectator()
                 || player.level().getDifficulty().equals(Difficulty.PEACEFUL))
             return false;

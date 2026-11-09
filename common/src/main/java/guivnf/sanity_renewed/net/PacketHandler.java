@@ -39,7 +39,7 @@ public final class PacketHandler
                 if (s == null) return;
                 s.setSanity(sanity);
                 s.setPassiveIncrease(passive);
-                s.setDirty(false);
+                s.setClientReceivedTick(player.tickCount);
             });
         });
     }

@@ -28,6 +28,9 @@ dependencies {
 
     modImplementation "software.bernie.geckolib:geckolib-neoforge-${project.mc_version}:${project.geckolib_version}"
 
+    // Depression (hard dependency): needed on the dev runtime classpath only, not bundled into the jar
+    modImplementation("net.depression:depression-neoforge:${project.depression_version}") { transitive = false }
+
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowBundle project(path: ":common", configuration: "transformProductionNeoForge")
 }

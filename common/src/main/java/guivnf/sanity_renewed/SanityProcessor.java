@@ -11,7 +11,7 @@ import guivnf.sanity_renewed.config.ConfigItem;
 import guivnf.sanity_renewed.config.ConfigItemCategory;
 import guivnf.sanity_renewed.config.ConfigProxy;
 import guivnf.sanity_renewed.item.ItemRegistry;
-import guivnf.sanity_renewed.net.PacketHandler;
+import guivnf.sanity_renewed.net.SanitySync;
 import guivnf.sanity_renewed.passive.BlockStuck;
 import guivnf.sanity_renewed.passive.Darkness;
 import guivnf.sanity_renewed.passive.DirtPath;
@@ -28,6 +28,7 @@ import guivnf.sanity_renewed.passive.Pet;
 import guivnf.sanity_renewed.passive.PlayerCompany;
 import guivnf.sanity_renewed.passive.TemperatureExtreme;
 import guivnf.sanity_renewed.passive.Thirsty;
+import guivnf.sanity_renewed.recovery.SanityRecovery;
 import guivnf.sanity_renewed.util.MathHelper;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.BlockPos;
@@ -122,15 +123,6 @@ public final class SanityProcessor
         return passive;
     }
 
-    private static void shareSanity(ServerPlayer player, Sanity cap)
-    {
-        if (cap.getDirty())
-        {
-            PacketHandler.sendSanityToPlayer(player, cap);
-            cap.setDirty(false);
-        }
-    }
-
     public static float getGarlandMultiplier(ServerPlayer player)
     {
         return player.getItemBySlot(EquipmentSlot.HEAD).is(ItemRegistry.GARLAND.get()) ? .92f : 1.0f;
@@ -142,8 +134,15 @@ public final class SanityProcessor
         return value >= 0 ? ConfigProxy.getNegMul(dim) * getGarlandMultiplier(player) : ConfigProxy.getPosMul(dim);
     }
 
+    /**
+     * Gameplay write of the legacy one-shot sources (value in insanity units, scaled by the config multipliers).
+     * Closed centrally in phase 1: nothing is written while {@link SanitySourceGate#LEGACY_ACTIVE_SOURCES} is off,
+     * whoever calls it. Debug commands and the phase-1 recovery do not use this method.
+     */
     public static void addSanity(@NotNull ISanity sanity, float value, @NotNull ServerPlayer player)
     {
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES)
+            return;
         if (value == 0.0f)
             return;
         sanity.setSanity(sanity.getSanity() + value * getSanityMultiplier(player, value));
@@ -151,30 +150,42 @@ public final class SanityProcessor
 
     public static void tickPlayer(final ServerPlayer player)
     {
-        if (player == null || player.isCreative() || player.isSpectator())
+        if (player == null)
             return;
 
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
 
-        float passive = calcPassive(player, s);
-        float snapshot = s.getSanity();
-        s.setSanity(s.getSanity() + passive);
-        s.setPassiveIncrease(snapshot != s.getSanity() ? passive : 0);
+        // Packets first and for every game mode: a pending forced sync (join, respawn copy, dimension change)
+        // must not wait for the player to leave creative mode.
+        SanitySync.tick(player, s);
 
-        int[] cds = s.getActiveSourcesCooldowns();
-        for (int i = 0; i < cds.length; ++i)
-            cds[i] = Mth.clamp(cds[i] - 1, 0, Integer.MAX_VALUE);
+        if (player.isCreative() || player.isSpectator() || !player.isAlive())
+            return;
 
-        decay(s.getItemCooldowns());
-        decay(s.getBrokenBlocksCooldowns());
+        // Phase 1: base + campfire recovery are the only things that move sanity by themselves.
+        SanityRecovery.tick(player, s);
 
-        tickSleep(s, player);
-        tickInnerEntityKillDecay(s);
+        if (SanitySourceGate.LEGACY_PASSIVE_SOURCES)
+        {
+            float passive = calcPassive(player, s);
+            float snapshot = s.getSanity();
+            s.setSanity(s.getSanity() + passive);
+            s.setPassiveIncrease(snapshot != s.getSanity() ? passive : 0);
 
-        shareSanity(player, s);
+            int[] cds = s.getActiveSourcesCooldowns();
+            for (int i = 0; i < cds.length; ++i)
+                cds[i] = Mth.clamp(cds[i] - 1, 0, Integer.MAX_VALUE);
 
-        guivnf.sanity_renewed.entity.InnerEntitySpawner.trySpawnForPlayer(player);
+            decay(s.getItemCooldowns());
+            decay(s.getBrokenBlocksCooldowns());
+
+            tickSleep(s, player);
+            tickInnerEntityKillDecay(s);
+        }
+
+        if (SanitySourceGate.INNER_ENTITY_SPAWNING)
+            guivnf.sanity_renewed.entity.InnerEntitySpawner.trySpawnForPlayer(player);
     }
 
     private static void tickSleep(Sanity s, ServerPlayer player)
@@ -202,7 +213,7 @@ public final class SanityProcessor
 
     private static void trySleepAward(Sanity s, ServerPlayer player)
     {
-        if (s.isSleepAwarded() || s.getSleepTicks() < MIN_SLEEP_TICKS)
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || s.isSleepAwarded() || s.getSleepTicks() < MIN_SLEEP_TICKS)
             return;
         if (player.level().getDayTime() - s.getSleepStartTime() <= s.getSleepTicks() + SLEEP_SKIP_MARGIN)
             return;
@@ -302,7 +313,7 @@ public final class SanityProcessor
             Function<ResourceLocation, Integer> cdSupplier,
             Function<ResourceLocation, Float> sanitySupplier)
     {
-        if (player == null || player.isCreative() || player.isSpectator())
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator())
             return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
@@ -324,7 +335,7 @@ public final class SanityProcessor
 
     public static void handleLevelSleepCompleted(ServerLevel level)
     {
-        if (level == null) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || level == null) return;
         for (ServerPlayer player : level.players())
         {
             if (player.isCreative() || player.isSpectator())
@@ -343,7 +354,7 @@ public final class SanityProcessor
 
     public static void handlePlayerHurt(ServerPlayer player, float amount)
     {
-        if (player == null || player.isCreative() || player.isSpectator() || amount <= 0) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator() || amount <= 0) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         addSanity(s, amount * ConfigProxy.getHurtRatio(dimOf(player)), player);
@@ -351,7 +362,7 @@ public final class SanityProcessor
 
     public static void handlePlayerHurtAnimal(ServerPlayer player, Animal animal, float amount)
     {
-        if (player == null || player.isCreative() || player.isSpectator() || amount <= 0) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator() || amount <= 0) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         addSanity(s, amount * ConfigProxy.getAnimalHurtRatio(dimOf(player)) * (animal.isBaby() ? 2.0f : 1.0f), player);
@@ -359,7 +370,7 @@ public final class SanityProcessor
 
     public static void handlePlayerPetDeath(ServerPlayer player, TamableAnimal pet)
     {
-        if (player == null || player.isCreative() || player.isSpectator() || !pet.isOwnedBy(player)) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator() || !pet.isOwnedBy(player)) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         addSanity(s, ConfigProxy.getPetDeath(dimOf(player)), player);
@@ -367,7 +378,7 @@ public final class SanityProcessor
 
     public static void handlePlayerEnderManAngered(ServerPlayer player)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_PASSIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         if (s.getEnderManAngerTimer() <= 0)
@@ -376,7 +387,7 @@ public final class SanityProcessor
 
     public static void handlePlayerGotAdvancement(ServerPlayer player, AdvancementHolder holder)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         var display = holder.value().display();
         if (display.isEmpty() || !display.get().shouldAnnounceChat()) return;
         Sanity s = SanityHolder.get(player);
@@ -436,7 +447,7 @@ public final class SanityProcessor
 
     public static void handlePlayerUsedItem(ServerPlayer player, ItemStack itemStack)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
 
@@ -487,7 +498,7 @@ public final class SanityProcessor
 
     public static void handlePlayerMinedBlock(ServerPlayer player, BlockPos blockPos, BlockState blockState, Block block, boolean correctTool)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
 
@@ -535,7 +546,7 @@ public final class SanityProcessor
 
     public static void handlePlayerTrampledFarmland(ServerPlayer player)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         addSanity(s, ConfigProxy.getFarmlandTrample(dimOf(player)), player);
@@ -549,15 +560,21 @@ public final class SanityProcessor
 
     public static void handlePlayerChangedDimensions(ServerPlayer player)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (player == null) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
+
+        // The client rebuilds its player object on a dimension change and starts from a blank state:
+        // ask for one packet (sent from the next tick, regardless of game mode).
+        s.requestSync();
+
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player.isCreative() || player.isSpectator()) return;
         addSanity(s, ConfigProxy.getChangedDimension(dimOf(player)), player);
     }
 
     public static void handlePlayerStruckByLightning(ServerPlayer player)
     {
-        if (player == null || player.isCreative() || player.isSpectator()) return;
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || player == null || player.isCreative() || player.isSpectator()) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
         addSanity(s, ConfigProxy.getStruckByLightning(dimOf(player)), player);

@@ -2,9 +2,12 @@ package guivnf.sanity_renewed.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import guivnf.sanity_renewed.capability.Sanity;
 import guivnf.sanity_renewed.capability.SanityHolder;
 import guivnf.sanity_renewed.config.DimensionConfig;
+import guivnf.sanity_renewed.net.SanitySync;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -16,6 +19,11 @@ import java.util.Collections;
 
 public final class SanityCommand
 {
+    private static final SimpleCommandExceptionType ERROR_SOURCE_NEEDS_PLAYER = new SimpleCommandExceptionType(
+            Component.translatableWithFallback(
+                    "commands.sanity.player_required",
+                    "/sanity get, set and add without targets need a player as executor, use <targets>"));
+
     private SanityCommand() {}
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher)
@@ -25,7 +33,7 @@ public final class SanityCommand
                 .then(Commands.literal("set")
                         .then(Commands.argument("value", FloatArgumentType.floatArg(0f, 100f))
                                 .executes(ctx -> setSanity(ctx.getSource(),
-                                        Collections.singleton((ServerPlayer) ctx.getSource().getEntityOrException()),
+                                        Collections.singleton(requireSourcePlayer(ctx.getSource())),
                                         FloatArgumentType.getFloat(ctx, "value"))))
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .then(Commands.argument("value", FloatArgumentType.floatArg(0f, 100f))
@@ -35,16 +43,47 @@ public final class SanityCommand
                 .then(Commands.literal("add")
                         .then(Commands.argument("value", FloatArgumentType.floatArg(-100f, 100f))
                                 .executes(ctx -> addSanity(ctx.getSource(),
-                                        Collections.singleton((ServerPlayer) ctx.getSource().getEntityOrException()),
+                                        Collections.singleton(requireSourcePlayer(ctx.getSource())),
                                         FloatArgumentType.getFloat(ctx, "value"))))
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .then(Commands.argument("value", FloatArgumentType.floatArg(-100f, 100f))
                                         .executes(ctx -> addSanity(ctx.getSource(),
                                                 EntityArgument.getPlayers(ctx, "targets"),
                                                 FloatArgumentType.getFloat(ctx, "value"))))))
+                .then(Commands.literal("get")
+                        .executes(ctx -> getSanity(ctx.getSource(),
+                                Collections.singleton(requireSourcePlayer(ctx.getSource()))))
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> getSanity(ctx.getSource(),
+                                        EntityArgument.getPlayers(ctx, "targets")))))
                 .then(Commands.literal("config")
                         .then(Commands.literal("reload")
                                 .executes(ctx -> reloadConfig(ctx.getSource())))));
+    }
+
+    // Debug commands. They work on the user-facing S (0..100, 100 = clear-headed), write the independent
+    // sanity value directly (no Depression values involved) and push to the client right away.
+
+    /** The executor of {@code /sanity get|set|add} without targets; console, command blocks and non-player entities get a clear error. */
+    private static ServerPlayer requireSourcePlayer(CommandSourceStack stack) throws CommandSyntaxException
+    {
+        if (stack.getEntity() instanceof ServerPlayer player)
+            return player;
+        throw ERROR_SOURCE_NEEDS_PLAYER.create();
+    }
+
+    private static int getSanity(CommandSourceStack stack, Collection<? extends ServerPlayer> targets)
+    {
+        int last = 0;
+        for (ServerPlayer player : targets)
+        {
+            Sanity s = SanityHolder.get(player);
+            if (s == null) continue;
+            float points = s.getSanityPoints();
+            last = Math.round(points);
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.get.success", player.getDisplayName(), String.format("%.2f", points)), false);
+        }
+        return last;
     }
 
     private static int setSanity(CommandSourceStack stack, Collection<? extends ServerPlayer> targets, float value)
@@ -52,7 +91,9 @@ public final class SanityCommand
         for (ServerPlayer player : targets)
         {
             Sanity s = SanityHolder.get(player);
-            if (s != null) s.setSanity((100f - value) / 100f);
+            if (s == null) continue;
+            s.setSanityPoints(value);
+            SanitySync.pushNow(player, s);
         }
         if (targets.size() == 1)
             stack.sendSuccess(() -> Component.translatable("commands.sanity.set.success.single", targets.iterator().next().getDisplayName(), value), true);
@@ -66,7 +107,9 @@ public final class SanityCommand
         for (ServerPlayer player : targets)
         {
             Sanity s = SanityHolder.get(player);
-            if (s != null) s.setSanity(s.getSanity() - value / 100f);
+            if (s == null) continue;
+            s.setSanityPoints(s.getSanityPoints() + value);
+            SanitySync.pushNow(player, s);
         }
         if (targets.size() == 1)
             stack.sendSuccess(() -> Component.translatable("commands.sanity.add.success.single", value, targets.iterator().next().getDisplayName()), true);

@@ -35,6 +35,12 @@ public abstract class ConfigManager
         proxies.put("sanity.positive_multiplier", new ProxyValueEntry<>(() -> getDefault().m_posMul.get(), ConfigManager::noFinalize));
         proxies.put("sanity.negative_multiplier", new ProxyValueEntry<>(() -> getDefault().m_negMul.get(), ConfigManager::noFinalize));
 
+        // sanity.recovery (phase 1, rates are sanity points per second)
+        proxies.put("sanity.recovery.base_per_second", new ProxyValueEntry<>(() -> getDefault().m_baseRecovery.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.recovery.base_min_light", new ProxyValueEntry<>(() -> getDefault().m_baseRecoveryMinLight.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.recovery.campfire_per_second", new ProxyValueEntry<>(() -> getDefault().m_campfireRecovery.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.recovery.campfire_radius", new ProxyValueEntry<>(() -> getDefault().m_campfireRadius.get(), ConfigManager::noFinalize));
+
         // sanity.passive
         proxies.put("sanity.passive.passive", new ProxyValueEntry<>(() -> getDefault().m_passive.get(), ConfigManager::finalizePassive));
         proxies.put("sanity.passive.raining", new ProxyValueEntry<>(() -> getDefault().m_raining.get(), ConfigManager::finalizePassive));

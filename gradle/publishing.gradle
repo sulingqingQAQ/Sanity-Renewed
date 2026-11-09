@@ -97,13 +97,15 @@ publishMods {
         version = "${modFullVersion}-mc${mc_version}-neoforge"
         announcementTitle = "Download from CurseForge (neoforge)"
     }
-    curseforge("curseforgeFabric") {
-        from cfOptions
-        file project(":fabric")
-        modLoaders.add("fabric")
-        displayName = "${mod_name} ${modFullVersion} - Fabric ${mc_version}"
-        version = "${modFullVersion}-mc${mc_version}-fabric"
-        announcementTitle = "Download from CurseForge (fabric)"
+    if (findProject(":fabric") != null) {
+        curseforge("curseforgeFabric") {
+            from cfOptions
+            file project(":fabric")
+            modLoaders.add("fabric")
+            displayName = "${mod_name} ${modFullVersion} - Fabric ${mc_version}"
+            version = "${modFullVersion}-mc${mc_version}-fabric"
+            announcementTitle = "Download from CurseForge (fabric)"
+        }
     }
 
     // --- Modrinth ---
@@ -115,13 +117,15 @@ publishMods {
         version = "${modFullVersion}-mc${mc_version}-neoforge"
         announcementTitle = "Download from Modrinth (neoforge)"
     }
-    modrinth("modrinthFabric") {
-        from mrOptions
-        file project(":fabric")
-        modLoaders.add("fabric")
-        displayName = "${mod_name} ${modFullVersion} - Fabric ${mc_version}"
-        version = "${modFullVersion}-mc${mc_version}-fabric"
-        announcementTitle = "Download from Modrinth (fabric)"
+    if (findProject(":fabric") != null) {
+        modrinth("modrinthFabric") {
+            from mrOptions
+            file project(":fabric")
+            modLoaders.add("fabric")
+            displayName = "${mod_name} ${modFullVersion} - Fabric ${mc_version}"
+            version = "${modFullVersion}-mc${mc_version}-fabric"
+            announcementTitle = "Download from Modrinth (fabric)"
+        }
     }
 
     // --- Discord (single announcement covering every upload above) ---

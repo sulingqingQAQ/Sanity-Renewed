@@ -1,7 +1,11 @@
 package guivnf.sanity_renewed.event;
 
 import guivnf.sanity_renewed.SanityProcessor;
+import guivnf.sanity_renewed.SanitySourceGate;
+import guivnf.sanity_renewed.capability.Sanity;
+import guivnf.sanity_renewed.capability.SanityHolder;
 import guivnf.sanity_renewed.command.SanityCommand;
+import guivnf.sanity_renewed.net.SanitySync;
 import guivnf.sanity_renewed.passive.Jukebox;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.BlockEvent;
@@ -26,20 +30,40 @@ public final class EventHandler
         TickEvent.PLAYER_POST.register(EventHandler::onPlayerTick);
         TickEvent.SERVER_LEVEL_POST.register(SanityProcessor::tickLevel);
 
-        EntityEvent.LIVING_HURT.register(EventHandler::onLivingHurt);
-        EntityEvent.LIVING_DEATH.register(EventHandler::onLivingDeath);
+        // Legacy one-shot sources: not even listened to while they are closed (they are also closed
+        // inside SanityProcessor, see SanitySourceGate).
+        if (SanitySourceGate.LEGACY_ACTIVE_SOURCES)
+        {
+            EntityEvent.LIVING_HURT.register(EventHandler::onLivingHurt);
+            EntityEvent.LIVING_DEATH.register(EventHandler::onLivingDeath);
 
-        PlayerEvent.PLAYER_ADVANCEMENT.register(SanityProcessor::handlePlayerGotAdvancement);
+            PlayerEvent.PLAYER_ADVANCEMENT.register(SanityProcessor::handlePlayerGotAdvancement);
+
+            BlockEvent.BREAK.register((level, pos, state, player, xp) ->
+            {
+                if (player != null)
+                    SanityProcessor.handlePlayerMinedBlock(
+                            player, pos, state, state.getBlock(),
+                            player.hasCorrectToolForDrops(state));
+                return EventResult.pass();
+            });
+        }
+
+        // Join: the first packet plus one repeat shortly after, so a first packet that reached the client
+        // before its player object was ready (or got lost) heals itself. Registered once, here.
+        PlayerEvent.PLAYER_JOIN.register(SanitySync::onPlayerJoin);
+
+        // The client rebuilds its player object when the dimension changes: push the state again.
         PlayerEvent.CHANGE_DIMENSION.register((player, oldDim, newDim) ->
                 SanityProcessor.handlePlayerChangedDimensions(player));
 
-        BlockEvent.BREAK.register((level, pos, state, player, xp) ->
+        // Death / end-portal return creates a new player object: carry the sanity over, unchanged.
+        PlayerEvent.PLAYER_CLONE.register((oldPlayer, newPlayer, wonGame) ->
         {
-            if (player != null)
-                SanityProcessor.handlePlayerMinedBlock(
-                        player, pos, state, state.getBlock(),
-                        player.hasCorrectToolForDrops(state));
-            return EventResult.pass();
+            Sanity from = SanityHolder.get(oldPlayer);
+            Sanity to = SanityHolder.get(newPlayer);
+            if (from != null && to != null)
+                to.copyPersistentFrom(from);
         });
 
         CommandRegistrationEvent.EVENT.register((dispatcher, registry, env) ->

@@ -26,6 +26,10 @@ subprojects {
     }
 
     repositories {
+        // Depression is only available from the local maven repository (publishToMavenLocal in the Depression repo)
+        mavenLocal {
+            content { includeGroup "net.depression" }
+        }
         maven { url = "https://maven.architectury.dev/" }
         maven { url = "https://maven.neoforged.net/releases" }
         maven { url = "https://maven.fabricmc.net/" }

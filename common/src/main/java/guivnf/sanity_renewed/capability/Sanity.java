@@ -9,9 +9,56 @@ import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Per-player sanity state of the Depression addon.
+ *
+ * <p><b>Units.</b> {@link #getSanity()} / {@link #setSanity(float)} work on the internal
+ * <i>insanity</i> {@code i} in [0, 1] (0 = clear-headed, 1 = fully insane). The user-facing value is
+ * {@code S = 100 * (1 - i)} (100 = clear-headed), see {@link #getSanityPoints()}.
+ * This value is independent from Depression's mental health {@code h} and mood {@code e}: it is never
+ * derived from them nor written back to them.
+ *
+ * <p><b>Persistence.</b> Own player NBT sub-tag {@code sanity_renewed:sanity} (see {@code MixinPlayer}).
+ *
+ * <p><b>Sync.</b> Server side only keeps bookkeeping (see {@link #pollSync(int)}); a packet is never sent
+ * unconditionally per tick.
+ */
 public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
 {
-    private boolean m_dirty = true;
+    /** Version of the {@code sanity_renewed:sanity} NBT layout (key {@code sanity.schema}). */
+    public static final int NBT_SCHEMA = 1;
+
+    /** Regular sync: at most one packet per this many ticks per player. */
+    public static final int SYNC_MIN_INTERVAL_TICKS = 20;
+    /** Regular sync: the value must have really moved by at least this much (insanity units, 0.05 S). */
+    public static final float SYNC_MIN_DELTA = 0.0005f;
+    /** A jump of at least this much (insanity units, 5 S) is pushed without waiting for the interval. */
+    public static final float SYNC_BIG_JUMP = 0.05f;
+
+    /** S = 100 * (1 - i). */
+    public static float toPoints(float insanity)
+    {
+        return 100f * (1f - insanity);
+    }
+
+    /** i = 1 - S / 100. */
+    public static float toInsanity(float points)
+    {
+        return 1f - points / 100f;
+    }
+
+    // server-side sync bookkeeping, never persisted
+    private boolean m_syncNow = true;
+    private float m_lastSentVal = Float.NaN;
+    private int m_lastSyncTick;
+    // server-side: player tickCount at which one extra forced packet is due (-1 = none), see requestSyncIn
+    private int m_delayedSyncAt = -1;
+    // server-side recovery cache (lit campfire nearby), never persisted
+    private boolean m_campfireNear;
+    private int m_campfireScanTick = Integer.MIN_VALUE;
+    // client-side: player.tickCount when the last sync packet was applied (-1 = never)
+    private int m_clientRecvTick = -1;
+
     private int m_emAngerTimer;
     private int m_garlandTimer;
     private int m_innerEntityKills;
@@ -35,6 +82,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     @Override
     public void serializeNBT(CompoundTag tag)
     {
+        tag.putInt("sanity.schema", NBT_SCHEMA);
         tag.putFloat("sanity.sanity", m_sanityVal);
         tag.putInt("sanity.ender_man_anger_timer", m_emAngerTimer);
         tag.putInt("sanity.garland_timer", m_garlandTimer);
@@ -89,17 +137,47 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
         m_passive = buf.readFloat();
     }
 
+    /** Internal insanity i in [0, 1]. */
     @Override
     public float getSanity()
     {
         return m_sanityVal;
     }
 
+    /**
+     * Raw write of the internal insanity i (clamped to [0, 1], non-finite input is ignored).
+     * Does not touch the packet bookkeeping except for flagging a big jump.
+     *
+     * <p>Allowed callers: {@code SanityRecovery}, the debug commands, NBT loading, the client sync
+     * receiver and the clone copy. Gameplay sources must not call this directly, they are closed
+     * centrally by {@code SanitySourceGate}.
+     */
     @Override
     public void setSanity(float value)
     {
-        m_sanityVal = MathHelper.clampNorm(value);
-        m_dirty = true;
+        if (!Float.isFinite(value))
+            return;
+        float v = MathHelper.clampNorm(value);
+        if (v == m_sanityVal)
+            return;
+        m_sanityVal = v;
+        // NaN lastSent (never sent) compares false here; the first sync is already forced by m_syncNow
+        if (Math.abs(v - m_lastSentVal) >= SYNC_BIG_JUMP)
+            m_syncNow = true;
+    }
+
+    /** User-facing sanity S in [0, 100] (100 = clear-headed). */
+    public float getSanityPoints()
+    {
+        return toPoints(m_sanityVal);
+    }
+
+    /** Raw write by user-facing S (clamped to [0, 100]). */
+    public void setSanityPoints(float points)
+    {
+        if (!Float.isFinite(points))
+            return;
+        setSanity(toInsanity(MathHelper.clamp(points, 0f, 100f)));
     }
 
     @Override
@@ -108,21 +186,101 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
         return m_passive;
     }
 
+    /** HUD arrow only: insanity change per tick of the most recent tick (negative = recovering). */
     @Override
     public void setPassiveIncrease(float value)
     {
         m_passive = value;
-        m_dirty = true;
     }
 
-    public boolean getDirty()
+    /** Server: ask for a packet on the next tick, ignoring the regular interval. */
+    public void requestSync()
     {
-        return m_dirty;
+        m_syncNow = true;
     }
 
-    public void setDirty(boolean value)
+    /**
+     * Server: ask for exactly one extra forced packet once the player's {@code tickCount} reaches
+     * {@code tickCount + delayTicks}. One-shot, not periodic; used after joining so that a first packet that
+     * arrived before the client player object was ready (or got lost) is repeated once.
+     */
+    public void requestSyncIn(int tickCount, int delayTicks)
     {
-        m_dirty = value;
+        m_delayedSyncAt = tickCount + Math.max(delayTicks, 1);
+    }
+
+    /**
+     * Server: decides whether a sync packet is due now and, if so, records it as sent.
+     *
+     * <p>Rules: a forced request (join, respawn copy, dimension change, debug write, big jump) is always
+     * due, and so is the single delayed join repeat set by {@link #requestSyncIn}. Otherwise a packet is due
+     * only if at least {@link #SYNC_MIN_INTERVAL_TICKS} ticks passed since the previous one <b>and</b> the
+     * value really moved by {@link #SYNC_MIN_DELTA} (or reached 0 / 1).
+     * So there is never a packet for an unchanged value and never more than one per second on the regular path.
+     */
+    public boolean pollSync(int tickCount)
+    {
+        boolean due = m_syncNow || (m_delayedSyncAt >= 0 && tickCount >= m_delayedSyncAt);
+        if (!due && m_sanityVal != m_lastSentVal && tickCount - m_lastSyncTick >= SYNC_MIN_INTERVAL_TICKS)
+        {
+            due = Math.abs(m_sanityVal - m_lastSentVal) >= SYNC_MIN_DELTA || m_sanityVal <= 0f || m_sanityVal >= 1f;
+        }
+        if (due)
+            markSynced(tickCount);
+        return due;
+    }
+
+    /** Server: records that the current state was just pushed to the client. */
+    public void markSynced(int tickCount)
+    {
+        m_syncNow = false;
+        if (m_delayedSyncAt >= 0 && tickCount >= m_delayedSyncAt)
+            m_delayedSyncAt = -1; // the delayed repeat has been served (by this packet)
+        m_lastSentVal = m_sanityVal;
+        m_lastSyncTick = tickCount;
+    }
+
+    /** Client: remember when the last sync packet arrived (see {@code SanityClientState}). */
+    public void setClientReceivedTick(int tickCount)
+    {
+        m_clientRecvTick = tickCount;
+    }
+
+    public int getClientReceivedTick()
+    {
+        return m_clientRecvTick;
+    }
+
+    public boolean isCampfireNear()
+    {
+        return m_campfireNear;
+    }
+
+    public void setCampfireNear(boolean value)
+    {
+        m_campfireNear = value;
+    }
+
+    public int getCampfireScanTick()
+    {
+        return m_campfireScanTick;
+    }
+
+    public void setCampfireScanTick(int value)
+    {
+        m_campfireScanTick = value;
+    }
+
+    /**
+     * Copies the persistent state of {@code other} into this instance (death / end-portal clone).
+     * Nothing is added or subtracted, and a packet is requested for the new client-side player.
+     */
+    public void copyPersistentFrom(Sanity other)
+    {
+        CompoundTag tag = new CompoundTag();
+        other.serializeNBT(tag);
+        deserializeNBT(tag);
+        requestSync();
     }
 
     @Override

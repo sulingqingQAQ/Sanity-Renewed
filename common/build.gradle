@@ -9,4 +9,7 @@ dependencies {
     modCompileOnly "fuzs.forgeconfigapiport:forgeconfigapiport-common-neoforgeapi:${project.forge_config_api_port_version}"
 
     modCompileOnly "software.bernie.geckolib:geckolib-neoforge-${project.mc_version}:${project.geckolib_version}"
+
+    // Depression library (common part); hard dependency, provided at runtime by the Depression mod itself
+    modCompileOnly("net.depression:depression-common:${project.depression_version}") { transitive = false }
 }

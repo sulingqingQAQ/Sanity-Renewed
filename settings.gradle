@@ -11,4 +11,5 @@ pluginManagement {
 }
 
 rootProject.name = "sanity_renewed"
-include("common", "neoforge", "fabric")
+// This Depression addon fork targets NeoForge only. Upstream Fabric sources remain untouched.
+include("common", "neoforge")
