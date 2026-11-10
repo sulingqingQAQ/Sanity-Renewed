@@ -38,6 +38,154 @@ public abstract class ConfigProxy
         return ConfigManager.proxyd2f("sanity.recovery.campfire_radius", dim);
     }
 
+    // ---- sanity.link (2A) ----
+
+    public static boolean getLinkEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.link_enabled", dim);
+    }
+
+    public static boolean getMoodRecoveryEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.mood_recovery_enabled", dim);
+    }
+
+    public static float getMoodRecoveryE1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_e1", dim);
+    }
+
+    public static float getMoodRecoveryE2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_e2", dim);
+    }
+
+    public static float getMoodRecoveryE3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_e3", dim);
+    }
+
+    public static float getMoodRecoveryM0(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_m0", dim);
+    }
+
+    public static float getMoodRecoveryM1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_m1", dim);
+    }
+
+    public static float getMoodRecoveryM2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_m2", dim);
+    }
+
+    public static float getMoodRecoveryM3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.mood_recovery_m3", dim);
+    }
+
+    public static boolean getSanityMoodEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.sanity_mood_enabled", dim);
+    }
+
+    public static float getSanityS1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.sanity_s1", dim);
+    }
+
+    public static float getSanityS2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.sanity_s2", dim);
+    }
+
+    public static float getSanityS3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.sanity_s3", dim);
+    }
+
+    public static float getStabilizeM0(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.stabilize_m0", dim);
+    }
+
+    public static float getStabilizeM1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.stabilize_m1", dim);
+    }
+
+    public static float getStabilizeM2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.stabilize_m2", dim);
+    }
+
+    public static float getStabilizeM3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.stabilize_m3", dim);
+    }
+
+    public static float getDamageM0(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.damage_m0", dim);
+    }
+
+    public static float getDamageM1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.damage_m1", dim);
+    }
+
+    public static float getDamageM2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.damage_m2", dim);
+    }
+
+    public static float getDamageM3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.damage_m3", dim);
+    }
+
+    public static boolean getPtsdEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.ptsd_enabled", dim);
+    }
+
+    public static float getPtsdPenalty1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.ptsd_penalty_1", dim);
+    }
+
+    public static float getPtsdPenalty2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.ptsd_penalty_2", dim);
+    }
+
+    public static float getPtsdPenalty3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.ptsd_penalty_3", dim);
+    }
+
+    public static float getPtsdPenalty4(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.ptsd_penalty_4", dim);
+    }
+
+    public static int getPtsdRearmSeconds(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.link.ptsd_rearm_seconds", dim);
+    }
+
+    public static boolean getPtsdLog(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.ptsd_log", dim);
+    }
+
+    /** Totals of the PTSD penalty: index 0 = 0, index k = S points paid in total once an episode reaches level k. */
+    public static float[] getPtsdPenaltyTable(ResourceLocation dim)
+    {
+        return new float[] { 0f, getPtsdPenalty1(dim), getPtsdPenalty2(dim), getPtsdPenalty3(dim), getPtsdPenalty4(dim) };
+    }
+
     public static float getPassive(ResourceLocation dim)
     {
         return ConfigManager.proxyd2f("sanity.passive.passive", dim);

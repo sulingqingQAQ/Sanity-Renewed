@@ -29,6 +29,7 @@ public final class SanityMod
         EntityRegistry.registerAttributes();
         guivnf.sanity_renewed.net.PacketHandler.init();
         guivnf.sanity_renewed.event.EventHandler.register();
+        guivnf.sanity_renewed.recovery.DepressionLink.installModifiers();
         LOGGER.info("[{}] common init complete", MOD_ID);
     }
 

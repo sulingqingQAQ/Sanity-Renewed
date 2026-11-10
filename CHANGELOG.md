@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## Unreleased - Depression addon, 2A (mood, sanity and PTSD)
+
+Needs the Depression build that has `MentalModifiers` for the sanity-to-mood part (an older build only loses that part and logs `modifiers unavailable`).
+
+### Added
+  - Bad mood slows the base sanity recovery (x1 / x0.75 / x0.5 / x0 by mood tier). The campfire recovery is not affected.
+  - Low sanity slows the fading of a negative mood (x1 / x0.75 / x0.5 / x0.25) and raises every psychological damage (x1 / x1 / x1.15 / x1.30). Because it hooks Depression's single damage primitive it also scales PTSD episode damage, death, pet death, insomnia wake-ups and hits sent through Depression's API by other mods (top factor x1.30 by default, the config allows up to x3).
+  - PTSD costs sanity once per episode: a rise in the PTSD level pays the difference to the next total (default totals 2 / 4 / 6 / 8 S, times `negative_multiplier`). Dropping to a lower non-zero level does not end an episode, only `ptsd_rearm_seconds` (default 10) consecutive seconds at level 0 do. Joining, respawning and switching dimension never charge by themselves.
+  - Config section `sanity.link` (28 keys, also overridable per dimension). Dimension overrides are checked when they are loaded (type, range, unknown keys), and the rules across keys (strictly descending thresholds, non-decreasing PTSD totals) are checked for the default config and for every dimension; a violation stops the start-up, or makes `/sanity config reload` fail and keep the previous overrides, with the key and value in the message. In `default.toml` a single out-of-range value is put back to its default by NeoForge's own config loader, with a warning in the log.
+  - `/sanity link [targets]` (permission 2, read-only): mood, sanity, the three multipliers, what stops the base recovery, PTSD level and episode ledger.
+
+### Changed
+  - Depression's `MentalModifiers` hook is registered at start-up when present; a Depression build without it is tolerated (one log line), a Depression build whose PTSD level API does not match stops the start-up with a clear message.
+
+---
+
 ## Unreleased - Depression addon, phase 1
 
 ### Changed
