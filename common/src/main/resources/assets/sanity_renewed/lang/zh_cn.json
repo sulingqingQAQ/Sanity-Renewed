@@ -3,12 +3,15 @@
 	"entity.sanity_renewed.sneaking_terror": "潜行恐魔",
 
 	"commands.sanity.set.success.single": "已将 %s 的理智设为 %s",
-	"commands.sanity.set.success.multiple": "已将 %s 名玩家的理智设为 %s",
-	"commands.sanity.add.success.single": "已为 %s 增加 %s 点理智",
+	"commands.sanity.set.success.multiple": "已将 %2$s 名玩家的理智设为 %1$s",
+	"commands.sanity.add.success.single": "已为 %2$s 增加 %1$s 点理智",
 	"commands.sanity.add.success.multiple": "已为 %s 名玩家增加 %s 点理智",
 	"commands.sanity.get.success": "%s 的理智为 %s（0-100，100 = 神志清醒）",
 	"commands.sanity.player_required": "不带目标的 /sanity get、set、add 必须由玩家执行，或使用 <targets> 指定目标",
 	"commands.sanity.config.reload": "维度配置重载成功",
+	"commands.sanity.link.mood": "%s：心情 e = %s，理智 S = %s | 基础恢复 ×%s，负面心情回稳 ×%s，心理伤害 ×%s（Depression 钩子：%s）",
+	"commands.sanity.link.gate": "%s：基础恢复 %s；附近有篝火：%s",
+	"commands.sanity.link.ptsd": "%s：PTSD 最大值 %s = %s 级；本次发作已扣到 %s 级；平静秒数 %s",
 
 	"gui.sanity_renewed.hint00": "（这些声音是从哪来的？）",
 	"gui.sanity_renewed.hint01": "（我有点心神不宁……）",
