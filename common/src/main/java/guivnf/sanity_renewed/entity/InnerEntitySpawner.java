@@ -117,9 +117,10 @@ public final class InnerEntitySpawner
             }
         }
 
-        // Explicit fallback scan: bounded vertical window around the sampled Y, top-down.
+        // Explicit fallback scan: bounded vertical window around the sampled Y, top-down. Same top as the heightmap
+        // window (maxY - 2): at maxY - 1 the head block would lie above the world and read as air.
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(column.getX(),
-                Math.min(column.getY() + radius, maxY - 1), column.getZ());
+                Math.min(column.getY() + radius, maxY - 2), column.getZ());
         int bottom = Math.max(column.getY() - radius, minY + 1);
         while (cursor.getY() >= bottom)
         {
