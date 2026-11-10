@@ -1,5 +1,6 @@
 package guivnf.sanity_renewed.entity;
 
+import guivnf.sanity_renewed.SanityMod;
 import guivnf.sanity_renewed.config.ConfigProxy;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,6 +20,8 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class Phase3Features
 {
+    private static volatile boolean dimensionWarned;
+
     private Phase3Features() {}
 
     /**
@@ -29,7 +32,22 @@ public final class Phase3Features
     {
         if (player == null)
             return false;
-        ResourceLocation dim = player.level().dimension().location();
+        ResourceLocation dim;
+        try
+        {
+            dim = player.level().dimension().location();
+        }
+        catch (RuntimeException e)
+        {
+            if (!dimensionWarned)
+            {
+                dimensionWarned = true;
+                SanityMod.LOGGER.warn("[{}] could not read the dimension of {} ({}), inner entity spawning stays off",
+                        SanityMod.MOD_ID, player.getScoreboardName(), e.toString());
+            }
+            return false;
+        }
+        // Never throws: a missing, mistyped or unreadable value reads as false (see ConfigProxy).
         return ConfigProxy.getPhase3InnerEntitySpawning(dim);
     }
 }

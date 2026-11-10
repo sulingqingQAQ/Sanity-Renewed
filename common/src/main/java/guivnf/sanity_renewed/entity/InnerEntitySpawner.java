@@ -52,8 +52,7 @@ public final class InnerEntitySpawner
 {
     private static final RandomSource RAND = RandomSource.create();
 
-    public static int spawnRad = 20;
-    public static int detectionRad = 40;
+    // The spawn and detection radii are sanity.phase3.spawn_radius / detection_radius (default 20 / 40, see ConfigProxy).
     public static int spawnTimeout = 20 * 20;
 
     public static final float SPAWN_THRESHOLD = .75f;

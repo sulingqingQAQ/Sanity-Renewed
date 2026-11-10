@@ -1,8 +1,11 @@
 package guivnf.sanity_renewed.config;
 
+import guivnf.sanity_renewed.SanityMod;
 import net.minecraft.resources.ResourceLocation;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class ConfigProxy
 {
@@ -187,26 +190,71 @@ public abstract class ConfigProxy
     }
 
     // --- phase 3: inner entities (default off) --------------------------------------------------
+    // These four are read on the server's per-player tick, so they never throw. A key that is not registered, a
+    // dimension override of the wrong type or outside the range declared in ConfigDefault (dimension overrides are
+    // stored raw), or any error while reading gives the safe value instead: spawning off, 20 t / 20 / 40.
+    // Each key and dimension is warned about once.
+
+    private static final Set<String> PHASE3_WARNED = ConcurrentHashMap.newKeySet();
 
     /** Explicit operator switch for new inner entity spawns. Default false keeps phase-1 behaviour. */
     public static boolean getPhase3InnerEntitySpawning(ResourceLocation dim)
     {
-        return ConfigManager.proxyb("sanity.phase3.inner_entity_spawning", dim);
+        String path = "sanity.phase3.inner_entity_spawning";
+        Object value = phase3Value(path, dim);
+        if (value instanceof Boolean enabled)
+            return enabled;
+        phase3Warn(path, dim, "is " + describe(value) + " instead of true/false, spawning stays off");
+        return false;
     }
 
     public static int getPhase3SpawnFailureCooldown(ResourceLocation dim)
     {
-        return ConfigManager.proxyi("sanity.phase3.spawn_failure_cooldown_ticks", dim);
+        return phase3Int("sanity.phase3.spawn_failure_cooldown_ticks", dim, 20, 1, 600);
     }
 
     public static int getPhase3SpawnRadius(ResourceLocation dim)
     {
-        return ConfigManager.proxyi("sanity.phase3.spawn_radius", dim);
+        return phase3Int("sanity.phase3.spawn_radius", dim, 20, 4, 64);
     }
 
     public static int getPhase3DetectionRadius(ResourceLocation dim)
     {
-        return ConfigManager.proxyi("sanity.phase3.detection_radius", dim);
+        return phase3Int("sanity.phase3.detection_radius", dim, 40, 8, 128);
+    }
+
+    private static int phase3Int(String path, ResourceLocation dim, int fallback, int min, int max)
+    {
+        Object value = phase3Value(path, dim);
+        if (value instanceof Integer i && i >= min && i <= max)
+            return i;
+        phase3Warn(path, dim, "is " + describe(value) + " instead of a whole number in [" + min + ", " + max + "], using " + fallback);
+        return fallback;
+    }
+
+    private static String describe(Object value)
+    {
+        return value == null ? "missing" : value + " (" + value.getClass().getSimpleName() + ")";
+    }
+
+    /** The raw value, or null when the key is not registered or reading it failed. */
+    private static Object phase3Value(String path, ResourceLocation dim)
+    {
+        try
+        {
+            return ConfigManager.proxy(path, dim);
+        }
+        catch (RuntimeException e)
+        {
+            phase3Warn(path, dim, "could not be read (" + e + ")");
+            return null;
+        }
+    }
+
+    private static void phase3Warn(String path, ResourceLocation dim, String problem)
+    {
+        if (PHASE3_WARNED.add(path + "@" + dim))
+            SanityMod.LOGGER.warn("[{}] config {} (dimension {}) {}", SanityMod.MOD_ID, path, dim, problem);
     }
 
     public static float getPassive(ResourceLocation dim)
