@@ -1,0 +1,40 @@
+{
+	"entity.sanity_renewed.rotting_stalker": "腐行潜影",
+	"entity.sanity_renewed.sneaking_terror": "潜行恐魔",
+
+	"commands.sanity.set.success.single": "已将 %s 的理智设为 %s",
+	"commands.sanity.set.success.multiple": "已将 %s 名玩家的理智设为 %s",
+	"commands.sanity.add.success.single": "已为 %s 增加 %s 点理智",
+	"commands.sanity.add.success.multiple": "已为 %s 名玩家增加 %s 点理智",
+	"commands.sanity.get.success": "%s 的理智为 %s（0-100，100 = 神志清醒）",
+	"commands.sanity.player_required": "不带目标的 /sanity get、set、add 必须由玩家执行，或使用 <targets> 指定目标",
+	"commands.sanity.config.reload": "维度配置重载成功",
+
+	"gui.sanity_renewed.hint00": "（这些声音是从哪来的？）",
+	"gui.sanity_renewed.hint01": "（我有点心神不宁……）",
+	"gui.sanity_renewed.hint02": "（刚才那是什么？）",
+	"gui.sanity_renewed.hint03": "（一种说不出的异样感……）",
+	"gui.sanity_renewed.hint04": "（我不喜欢这种感觉……）",
+	"gui.sanity_renewed.hint05": "（嗯？）",
+	"gui.sanity_renewed.hint06": "（唔？）",
+	"gui.sanity_renewed.hint07": "（什么声音？）",
+	"gui.sanity_renewed.hint08": "（那里有什么东西？）",
+	"gui.sanity_renewed.hint09": "（刚才是我发出的声音吗？）",
+	"gui.sanity_renewed.hint010": "（太奇怪了……）",
+	"gui.sanity_renewed.hint011": "（我是不是刚刚看到了什么？）",
+	"gui.sanity_renewed.hint10": "（有人在我身后！）",
+	"gui.sanity_renewed.hint11": "（一、二、三、四……）",
+	"gui.sanity_renewed.hint12": "（……五、六、七、八……）",
+	"gui.sanity_renewed.hint13": "（它们钻进了我的脑子！）",
+	"gui.sanity_renewed.hint14": "（离我远点！）",
+	"gui.sanity_renewed.hint15": "（别走神，别走神……）",
+	"gui.sanity_renewed.hint16": "（它们为什么就是不肯消失？！）",
+	"gui.sanity_renewed.hint17": "（太吵了太吵了太吵了！）",
+	"gui.sanity_renewed.hint18": "（那些声音……我撑不住了……）",
+
+	"item.sanity_renewed.tooltip.press_shift": "§7按住 §9SHIFT §7查看更多信息",
+	"item.sanity_renewed.garland": "花环",
+	"item.sanity_renewed.garland.tooltip": "§7一件安抚神经的小物\n\n缓慢恢复理智，并略微提升你对精神压力的抵抗力",
+
+	"itemGroup.sanity_renewed": "理智：复苏（抑郁附属）"
+}

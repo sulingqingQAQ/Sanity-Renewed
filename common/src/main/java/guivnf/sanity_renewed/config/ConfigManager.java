@@ -41,6 +41,12 @@ public abstract class ConfigManager
         proxies.put("sanity.recovery.campfire_per_second", new ProxyValueEntry<>(() -> getDefault().m_campfireRecovery.get(), ConfigManager::noFinalize));
         proxies.put("sanity.recovery.campfire_radius", new ProxyValueEntry<>(() -> getDefault().m_campfireRadius.get(), ConfigManager::noFinalize));
 
+        // sanity.phase3 (inner entities; all default off / conservative, dimension overridable like any other key)
+        proxies.put("sanity.phase3.inner_entity_spawning", new ProxyValueEntry<>(() -> getDefault().m_phase3InnerEntitySpawning.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.phase3.spawn_failure_cooldown_ticks", new ProxyValueEntry<>(() -> getDefault().m_phase3SpawnFailureCooldown.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.phase3.spawn_radius", new ProxyValueEntry<>(() -> getDefault().m_phase3SpawnRadius.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.phase3.detection_radius", new ProxyValueEntry<>(() -> getDefault().m_phase3DetectionRadius.get(), ConfigManager::noFinalize));
+
         // sanity.passive
         proxies.put("sanity.passive.passive", new ProxyValueEntry<>(() -> getDefault().m_passive.get(), ConfigManager::finalizePassive));
         proxies.put("sanity.passive.raining", new ProxyValueEntry<>(() -> getDefault().m_raining.get(), ConfigManager::finalizePassive));
@@ -122,6 +128,7 @@ public abstract class ConfigManager
         proxies.put("sanity.client.render_post", new ProxyValueEntry<>(() -> getDefault().m_renderPost.get(), ConfigManager::noFinalize));
         proxies.put("sanity.client.play_sounds", new ProxyValueEntry<>(() -> getDefault().m_playSounds.get(), ConfigManager::noFinalize));
         proxies.put("sanity.client.insanity_volume", new ProxyValueEntry<>(() -> getDefault().m_insanityVolume.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.client.heartbeat_yield_to_depression", new ProxyValueEntry<>(() -> getDefault().m_heartbeatYieldToDepression.get(), ConfigManager::noFinalize));
 
         DimensionConfig.init();
     }

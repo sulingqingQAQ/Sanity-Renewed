@@ -298,6 +298,35 @@ public final class SanityProcessor
         return toReturn;
     }
 
+    /**
+     * Phase 3 distance-bounded variant: like {@link #getMostInsanePlayer(Level, float)} but only
+     * considers players within {@code maxDistance} blocks of {@code mob}. The original method scans
+     * the whole level, so an inner entity could lock onto a player hundreds of blocks away and walk
+     * across the world to reach them. Inner entity goals use this variant; the unbounded method is
+     * kept for any existing callers.
+     */
+    public static Player getMostInsanePlayer(final net.minecraft.world.entity.Mob mob, float sanityThreshold, double maxDistance)
+    {
+        if (mob == null || mob.level() == null) return null;
+        Player toReturn = null;
+        float maxSanity = Float.MIN_VALUE;
+        double maxDistanceSq = maxDistance * maxDistance;
+        for (Player player : mob.level().players())
+        {
+            if (player.isCreative() || player.isSpectator() || player.distanceToSqr(mob) > maxDistanceSq)
+                continue;
+            Sanity s = SanityHolder.get(player);
+            if (s == null) continue;
+            float sanity = s.getSanity();
+            if (sanity >= sanityThreshold && sanity > maxSanity)
+            {
+                maxSanity = sanity;
+                toReturn = player;
+            }
+        }
+        return toReturn;
+    }
+
     public static boolean isValidInsaneTarget(LivingEntity target, float sanityThreshold)
     {
         if (!(target instanceof Player player) || player.isCreative() || player.isSpectator())

@@ -52,7 +52,9 @@ public class RottingStalker extends InnerEntity implements GeoEntity
 
             RawAnimation anim = DefaultAnimations.IDLE;
             if (state.isMoving())
-                anim = (!getData().hasTarget() || isInWater())
+                // Phase 3: target state now comes from the synched entity data instead of the
+                // never-written InnerEntityCapImpl, so the RUN animation actually plays while hunting.
+                anim = (getSyncedTargetUuid().isEmpty() || isInWater())
                         ? DefaultAnimations.WALK
                         : DefaultAnimations.RUN;
             return state.setAndContinue(anim);

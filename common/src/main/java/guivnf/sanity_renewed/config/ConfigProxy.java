@@ -38,6 +38,29 @@ public abstract class ConfigProxy
         return ConfigManager.proxyd2f("sanity.recovery.campfire_radius", dim);
     }
 
+    // --- phase 3: inner entities (default off) --------------------------------------------------
+
+    /** Explicit operator switch for new inner entity spawns. Default false keeps phase-1 behaviour. */
+    public static boolean getPhase3InnerEntitySpawning(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.phase3.inner_entity_spawning", dim);
+    }
+
+    public static int getPhase3SpawnFailureCooldown(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.phase3.spawn_failure_cooldown_ticks", dim);
+    }
+
+    public static int getPhase3SpawnRadius(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.phase3.spawn_radius", dim);
+    }
+
+    public static int getPhase3DetectionRadius(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.phase3.detection_radius", dim);
+    }
+
     public static float getPassive(ResourceLocation dim)
     {
         return ConfigManager.proxyd2f("sanity.passive.passive", dim);
@@ -376,5 +399,11 @@ public abstract class ConfigProxy
     public static float getInsanityVolume(ResourceLocation dim)
     {
         return ConfigManager.proxyd2f("sanity.client.insanity_volume", dim);
+    }
+
+    /** Phase 3: client-only. When true, the SR heartbeat yields during a Depression PTSD onset. */
+    public static boolean getHeartbeatYieldToDepression(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.client.heartbeat_yield_to_depression", dim);
     }
 }

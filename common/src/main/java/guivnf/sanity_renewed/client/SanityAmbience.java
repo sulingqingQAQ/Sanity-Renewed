@@ -7,6 +7,7 @@ import guivnf.sanity_renewed.sound.SanitySoundInstances;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -89,6 +90,17 @@ public final class SanityAmbience
         float sanity = s.getSanity();
         float insanityFactor  = Mth.clamp(Mth.inverseLerp(sanity, .55f, .8f), 0f, 1f);
         float heartbeatFactor = Mth.clamp(Mth.inverseLerp(sanity, .7f,  .8f), 0f, 1f);
+
+        // Phase 3 audio boundary: Depression plays its own heartbeat/breathing during a PTSD onset.
+        // Yield this addon's heartbeat then (configurable) so the two loops never overlap. The
+        // insanity drone and the fake footsteps keep playing regardless.
+        ResourceLocation dim = player.level().dimension().location();
+        if (heartbeatFactor > 0f
+                && ConfigProxy.getHeartbeatYieldToDepression(dim)
+                && DepressionClientBridge.isPtsdOnsetActive())
+        {
+            heartbeatFactor = 0f;
+        }
 
         crossfade(insanity, insanityFactor, true);
         crossfade(heartbeat, heartbeatFactor, false);

@@ -20,6 +20,11 @@ public class ConfigDefault
     public final DoubleValue m_campfireRecovery;
     public final DoubleValue m_campfireRadius;
 
+    public final BooleanValue m_phase3InnerEntitySpawning;
+    public final IntValue m_phase3SpawnFailureCooldown;
+    public final IntValue m_phase3SpawnRadius;
+    public final IntValue m_phase3DetectionRadius;
+
     public final DoubleValue m_passive;
     public final DoubleValue m_raining;
     public final BooleanValue m_affectInWater;
@@ -93,6 +98,7 @@ public class ConfigDefault
     public final BooleanValue m_renderPost;
     public final BooleanValue m_playSounds;
     public final DoubleValue m_insanityVolume;
+    public final BooleanValue m_heartbeatYieldToDepression;
 
     public ConfigDefault(ModConfigSpec.Builder builder)
     {
@@ -132,6 +138,35 @@ public class ConfigDefault
         m_campfireRadius = builder
                 .comment("Campfire reach in blocks")
                 .defineInRange("campfire_radius", 4.0, 0.5, 8.0);
+
+        builder.pop();
+
+        builder.comment(
+                "Depression addon, phase 3: inner entities (shadow creatures).",
+                "Everything here ships OFF: leaving the defaults keeps the phase-1 behaviour where no new",
+                "inner entities ever spawn. Operators must opt in explicitly per dimension.")
+                .push("phase3");
+
+        m_phase3InnerEntitySpawning = builder
+                .comment(
+                        "Master switch for spawning NEW inner entities (Rotting Stalker / Sneaking Terror).",
+                        "Default false = no new spawns, exactly as in phase 1. Existing entities already in a world",
+                        "are not removed and keep their visibility/attack gating. Set to true to allow spawning for",
+                        "players whose insanity reaches the 0.75 spawn threshold (sanity S <= 25).",
+                        "The compile-time phase gate must also be opened by a phase-3 build; this config alone is not enough.")
+                .define("inner_entity_spawning", false);
+        m_phase3SpawnFailureCooldown = builder
+                .comment(
+                        "Ticks to wait before retrying a player whose last spawn attempt failed (bad spot, collision).",
+                        "Prevents an eligible player in an unsuitable location from retrying the radius-40 entity",
+                        "query and block scan every tick. 20 ticks = 1 second.")
+                .defineInRange("spawn_failure_cooldown_ticks", 20, 1, 600);
+        m_phase3SpawnRadius = builder
+                .comment("Horizontal radius (blocks) around the player in which a spawn column is sampled.")
+                .defineInRange("spawn_radius", 20, 4, 64);
+        m_phase3DetectionRadius = builder
+                .comment("Radius (blocks) of the nearby-inner-entity count used to enforce the per-player cap.")
+                .defineInRange("detection_radius", 40, 8, 128);
 
         builder.pop();
         builder.comment("Configuration for passive sanity sources").push("passive");
@@ -418,6 +453,13 @@ public class ConfigDefault
         m_insanityVolume = builder
                 .comment("Insanity ambience max volume")
                 .defineInRange("insanity_volume", .6, .0, 1.0);
+        m_heartbeatYieldToDepression = builder
+                .comment(
+                        "Phase 3 audio boundary with Depression: when true, this addon's heartbeat loop goes silent",
+                        "during a Depression PTSD onset (Depression plays its own heartbeat/breathing then), so the",
+                        "two mods never play two heartbeats at once. The insanity drone and fake footsteps are not",
+                        "affected. Only read on the client.")
+                .define("heartbeat_yield_to_depression", true);
 
         builder.pop();
     }
