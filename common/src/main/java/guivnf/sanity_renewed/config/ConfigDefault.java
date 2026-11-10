@@ -20,6 +20,35 @@ public class ConfigDefault
     public final DoubleValue m_campfireRecovery;
     public final DoubleValue m_campfireRadius;
 
+    public final BooleanValue m_linkEnabled;
+    public final BooleanValue m_moodRecoveryEnabled;
+    public final DoubleValue m_moodRecoveryE1;
+    public final DoubleValue m_moodRecoveryE2;
+    public final DoubleValue m_moodRecoveryE3;
+    public final DoubleValue m_moodRecoveryM0;
+    public final DoubleValue m_moodRecoveryM1;
+    public final DoubleValue m_moodRecoveryM2;
+    public final DoubleValue m_moodRecoveryM3;
+    public final BooleanValue m_sanityMoodEnabled;
+    public final DoubleValue m_sanityS1;
+    public final DoubleValue m_sanityS2;
+    public final DoubleValue m_sanityS3;
+    public final DoubleValue m_stabilizeM0;
+    public final DoubleValue m_stabilizeM1;
+    public final DoubleValue m_stabilizeM2;
+    public final DoubleValue m_stabilizeM3;
+    public final DoubleValue m_damageM0;
+    public final DoubleValue m_damageM1;
+    public final DoubleValue m_damageM2;
+    public final DoubleValue m_damageM3;
+    public final BooleanValue m_ptsdEnabled;
+    public final DoubleValue m_ptsdPenalty1;
+    public final DoubleValue m_ptsdPenalty2;
+    public final DoubleValue m_ptsdPenalty3;
+    public final DoubleValue m_ptsdPenalty4;
+    public final IntValue m_ptsdRearmSeconds;
+    public final BooleanValue m_ptsdLog;
+
     public final BooleanValue m_phase3InnerEntitySpawning;
     public final IntValue m_phase3SpawnFailureCooldown;
     public final IntValue m_phase3SpawnRadius;
@@ -107,7 +136,8 @@ public class ConfigDefault
                 "NOTE: all sanity values are measured in percentages (i.e. 40.0 is equal to 40% of sanity bar)",
                 "NOTE: each subsequent usage of an active source or item has its effectiveness multiplied by (timeSinceLastUsage / cooldown) (capped at 1.0)",
                 "NOTE (Depression addon, phase 1): the keys under <passive> and <active> (and multiplayer / inner entity kill) are INACTIVE.",
-                "Sanity only recovers through the <recovery> section below, and through /sanity set|add (debug).")
+                "Sanity only recovers through the <recovery> section below, and through /sanity set|add (debug).",
+                "NOTE (Depression addon, 2A): the <link> section below ties mood, sanity and PTSD together; PTSD is the only thing there that takes sanity away.")
                 .push("sanity");
 
         m_posMul = builder
@@ -138,6 +168,119 @@ public class ConfigDefault
         m_campfireRadius = builder
                 .comment("Campfire reach in blocks")
                 .defineInRange("campfire_radius", 4.0, 0.5, 8.0);
+
+        builder.pop();
+        builder.comment(
+                "Depression addon, 2A: how mood, sanity and PTSD affect each other. All numbers are first drafts and still need tuning in real play.",
+                "Mood e runs from -20 (worst) to +20. Sanity S runs from 0 to 100 (100 = clear-headed).",
+                "Per-dimension overrides of these keys are checked when they are loaded: a wrong type, an unknown key or a value outside its range stops the start-up",
+                "(or makes /sanity config reload fail and keep the old overrides). There, write decimal numbers with a dot (1.0, not 1).",
+                "In this file (default.toml) NeoForge itself puts a value that is out of range or of the wrong type back to its default and writes a warning to the log, so check the log after editing.",
+                "Rules across several keys (the three mood thresholds and the three sanity thresholds must strictly descend, the four PTSD totals must not decrease) are checked for this file",
+                "and for every dimension; breaking one stops the start-up (or fails the reload).").push("link");
+
+        m_linkEnabled = builder
+                .comment(
+                        "Master switch of everything in this section. Off = mood does not slow the base recovery, sanity does not touch mood,",
+                        "PTSD does not cost sanity (Depression then behaves exactly as without this addon)")
+                .define("link_enabled", true);
+
+        m_moodRecoveryEnabled = builder
+                .comment("Whether a bad mood slows the BASE recovery down. The campfire recovery is never affected. Off = base recovery always runs at full speed")
+                .define("mood_recovery_enabled", true);
+        m_moodRecoveryE1 = builder
+                .comment("Mood at or above this value: base recovery runs at full speed (mood_recovery_m0). Must be larger than e2")
+                .defineInRange("mood_recovery_e1", 0.0, -20.0, 20.0);
+        m_moodRecoveryE2 = builder
+                .comment("Mood above this value (and below e1): speed mood_recovery_m1. Must be larger than e3")
+                .defineInRange("mood_recovery_e2", -5.0, -20.0, 20.0);
+        m_moodRecoveryE3 = builder
+                .comment("Mood above this value (and not above e2): speed mood_recovery_m2. Mood at or below it: speed mood_recovery_m3")
+                .defineInRange("mood_recovery_e3", -10.0, -20.0, 20.0);
+        m_moodRecoveryM0 = builder
+                .comment("Base recovery speed factor when the mood is good (1.0 = unchanged, 0 = stopped)")
+                .defineInRange("mood_recovery_m0", 1.0, 0.0, 1.0);
+        m_moodRecoveryM1 = builder
+                .comment("Base recovery speed factor when the mood is slightly bad")
+                .defineInRange("mood_recovery_m1", 0.75, 0.0, 1.0);
+        m_moodRecoveryM2 = builder
+                .comment("Base recovery speed factor when the mood is bad")
+                .defineInRange("mood_recovery_m2", 0.5, 0.0, 1.0);
+        m_moodRecoveryM3 = builder
+                .comment(
+                        "Base recovery speed factor when the mood is very bad. 0 = base recovery stops completely (only a campfire helps);",
+                        "raise it to 0.1 if players get stuck")
+                .defineInRange("mood_recovery_m3", 0.0, 0.0, 1.0);
+
+        m_sanityMoodEnabled = builder
+                .comment(
+                        "Whether low sanity makes a negative mood fade away more slowly and makes psychological damage hurt more.",
+                        "Off = Depression is not touched by sanity at all")
+                .define("sanity_mood_enabled", true);
+        m_sanityS1 = builder
+                .comment("Sanity at or above this value is the best tier (stabilize_m0 / damage_m0). Must be larger than s2")
+                .defineInRange("sanity_s1", 70.0, 0.0, 100.0);
+        m_sanityS2 = builder
+                .comment("Sanity at or above this value (and below s1) is the second tier. Must be larger than s3")
+                .defineInRange("sanity_s2", 40.0, 0.0, 100.0);
+        m_sanityS3 = builder
+                .comment("Sanity at or above this value (and below s2) is the third tier, anything lower is the fourth tier")
+                .defineInRange("sanity_s3", 20.0, 0.0, 100.0);
+
+        m_stabilizeM0 = builder
+                .comment("How fast a negative mood returns towards 0, best sanity tier (1.0 = Depression's normal speed, smaller = slower)")
+                .defineInRange("stabilize_m0", 1.0, 0.0, 1.0);
+        m_stabilizeM1 = builder
+                .comment("Same, second sanity tier")
+                .defineInRange("stabilize_m1", 0.75, 0.0, 1.0);
+        m_stabilizeM2 = builder
+                .comment("Same, third sanity tier")
+                .defineInRange("stabilize_m2", 0.5, 0.0, 1.0);
+        m_stabilizeM3 = builder
+                .comment("Same, fourth (lowest) sanity tier. 0 would freeze a negative mood completely")
+                .defineInRange("stabilize_m3", 0.25, 0.0, 1.0);
+
+        m_damageM0 = builder
+                .comment(
+                        "Factor on every psychological damage the player takes, best sanity tier (1.0 = unchanged, larger = hurts more).",
+                        "It also scales Depression's smaller hits (PTSD episodes, death, pet death, insomnia) and hits sent through Depression's API by other mods")
+                .defineInRange("damage_m0", 1.0, 1.0, 3.0);
+        m_damageM1 = builder
+                .comment("Same, second sanity tier")
+                .defineInRange("damage_m1", 1.0, 1.0, 3.0);
+        m_damageM2 = builder
+                .comment("Same, third sanity tier")
+                .defineInRange("damage_m2", 1.15, 1.0, 3.0);
+        m_damageM3 = builder
+                .comment("Same, fourth (lowest) sanity tier")
+                .defineInRange("damage_m3", 1.30, 1.0, 3.0);
+
+        m_ptsdEnabled = builder
+                .comment("Whether a PTSD level rising (1-4, as in Depression) costs sanity, once per episode")
+                .define("ptsd_enabled", true);
+        m_ptsdPenalty1 = builder
+                .comment(
+                        "Sanity points (S, before negative_multiplier) paid IN TOTAL once an episode reaches PTSD level 1.",
+                        "Rising further only pays the difference to the next total, so 0 -> 4 directly and 0 -> 1 -> 2 -> 3 -> 4 cost the same.",
+                        "The four totals must not decrease: 0 <= level 1 <= level 2 <= level 3 <= level 4")
+                .defineInRange("ptsd_penalty_1", 2.0, 0.0, 100.0);
+        m_ptsdPenalty2 = builder
+                .comment("Total paid once an episode reaches PTSD level 2 (not smaller than level 1)")
+                .defineInRange("ptsd_penalty_2", 4.0, 0.0, 100.0);
+        m_ptsdPenalty3 = builder
+                .comment("Total paid once an episode reaches PTSD level 3 (not smaller than level 2)")
+                .defineInRange("ptsd_penalty_3", 6.0, 0.0, 100.0);
+        m_ptsdPenalty4 = builder
+                .comment("Total paid once an episode reaches PTSD level 4 (not smaller than level 3)")
+                .defineInRange("ptsd_penalty_4", 8.0, 0.0, 100.0);
+        m_ptsdRearmSeconds = builder
+                .comment(
+                        "An episode only ends after the PTSD level stayed at 0 for this many CONSECUTIVE seconds; only then the next rise costs sanity again.",
+                        "Dropping to a lower, non-zero level does not end it. Seconds are Depression's 20-tick steps, so a laggy server counts slower. 0 = ends as soon as the level is 0")
+                .defineInRange("ptsd_rearm_seconds", 10, 0, 300);
+        m_ptsdLog = builder
+                .comment("Write one line to the server log every time PTSD costs sanity (rare, handy to check numbers in real play)")
+                .define("ptsd_log", true);
 
         builder.pop();
 

@@ -28,6 +28,7 @@ import guivnf.sanity_renewed.passive.Pet;
 import guivnf.sanity_renewed.passive.PlayerCompany;
 import guivnf.sanity_renewed.passive.TemperatureExtreme;
 import guivnf.sanity_renewed.passive.Thirsty;
+import guivnf.sanity_renewed.recovery.PtsdSanityPenalty;
 import guivnf.sanity_renewed.recovery.SanityRecovery;
 import guivnf.sanity_renewed.util.MathHelper;
 import net.minecraft.advancements.AdvancementHolder;
@@ -165,6 +166,8 @@ public final class SanityProcessor
 
         // Phase 1: base + campfire recovery are the only things that move sanity by themselves.
         SanityRecovery.tick(player, s);
+        // 2A: a PTSD episode reaching a higher level costs sanity once
+        PtsdSanityPenalty.tick(player, s);
 
         if (SanitySourceGate.LEGACY_PASSIVE_SOURCES)
         {

@@ -1,6 +1,7 @@
 package guivnf.sanity_renewed.capability;
 
 import guivnf.sanity_renewed.ActiveSanitySources;
+import guivnf.sanity_renewed.recovery.PtsdEdgeTracker;
 import guivnf.sanity_renewed.util.MathHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -56,6 +57,8 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     // server-side recovery cache (lit campfire nearby), never persisted
     private boolean m_campfireNear;
     private int m_campfireScanTick = Integer.MIN_VALUE;
+    // server-side PTSD episode bookkeeping (PtsdSanityPenalty), never persisted and not copied on clone: a new player object starts a fresh baseline
+    private final PtsdEdgeTracker m_ptsdEdge = new PtsdEdgeTracker();
     // client-side: player.tickCount when the last sync packet was applied (-1 = never)
     private int m_clientRecvTick = -1;
 
@@ -148,7 +151,7 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
      * Raw write of the internal insanity i (clamped to [0, 1], non-finite input is ignored).
      * Does not touch the packet bookkeeping except for flagging a big jump.
      *
-     * <p>Allowed callers: {@code SanityRecovery}, the debug commands, NBT loading, the client sync
+     * <p>Allowed callers: {@code SanityRecovery}, {@code PtsdSanityPenalty}, the debug commands, NBT loading, the client sync
      * receiver and the clone copy. Gameplay sources must not call this directly, they are closed
      * centrally by {@code SanitySourceGate}.
      */
@@ -269,6 +272,11 @@ public class Sanity implements ISanity, IPassiveSanity, IPersistentSanity
     public void setCampfireScanTick(int value)
     {
         m_campfireScanTick = value;
+    }
+
+    public PtsdEdgeTracker getPtsdEdge()
+    {
+        return m_ptsdEdge;
     }
 
     /**

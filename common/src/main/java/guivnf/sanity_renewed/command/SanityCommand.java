@@ -5,13 +5,22 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import guivnf.sanity_renewed.capability.Sanity;
+import guivnf.sanity_renewed.SanityMod;
 import guivnf.sanity_renewed.capability.SanityHolder;
+import guivnf.sanity_renewed.config.ConfigManager;
+import guivnf.sanity_renewed.config.ConfigProxy;
 import guivnf.sanity_renewed.config.DimensionConfig;
+import guivnf.sanity_renewed.config.LinkConfigSpec;
 import guivnf.sanity_renewed.net.SanitySync;
+import guivnf.sanity_renewed.recovery.DepressionLink;
+import guivnf.sanity_renewed.recovery.MoodCoupling;
+import guivnf.sanity_renewed.recovery.PtsdEdgeTracker;
+import guivnf.sanity_renewed.recovery.SanityRecovery;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Collection;
@@ -55,6 +64,13 @@ public final class SanityCommand
                                 Collections.singleton(requireSourcePlayer(ctx.getSource()))))
                         .then(Commands.argument("targets", EntityArgument.players())
                                 .executes(ctx -> getSanity(ctx.getSource(),
+                                        EntityArgument.getPlayers(ctx, "targets")))))
+                .then(Commands.literal("link")
+                        .requires(stack -> stack.hasPermission(2))
+                        .executes(ctx -> linkInfo(ctx.getSource(),
+                                Collections.singleton(requireSourcePlayer(ctx.getSource()))))
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .executes(ctx -> linkInfo(ctx.getSource(),
                                         EntityArgument.getPlayers(ctx, "targets")))))
                 .then(Commands.literal("config")
                         .then(Commands.literal("reload")
@@ -118,9 +134,77 @@ public final class SanityCommand
         return (int) value;
     }
 
-    private static int reloadConfig(CommandSourceStack stack)
+    /**
+     * Read-only report of the 2A coupling of the targets (mood, sanity, the three multipliers, what stops the base
+     * recovery, PTSD level and the episode ledger). It never advances the PTSD window, never touches the ledger and
+     * never changes sanity, so asking as often as you like cannot change what happens next.
+     */
+    private static int linkInfo(CommandSourceStack stack, Collection<? extends ServerPlayer> targets)
     {
-        DimensionConfig.init();
+        int shown = 0;
+        for (ServerPlayer player : targets)
+        {
+            Sanity s = SanityHolder.get(player);
+            if (s == null) continue;
+            ResourceLocation dim = player.level().dimension().location();
+            Component name = player.getDisplayName();
+
+            double e = DepressionLink.readEmotion(player);
+            String mood = Double.isNaN(e) ? "n/a" : String.format("%.2f", e);
+            String points = String.format("%.2f", s.getSanityPoints());
+            String recovery = String.format("%.2f", MoodCoupling.baseRecoveryMultiplier(player, dim));
+            String fade = String.format("%.2f", MoodCoupling.stabilizeMultiplier(player));
+            String damage = String.format("%.2f", MoodCoupling.damageMultiplier(player));
+            String hook = DepressionLink.isModifiersRegistered() ? "connected" : "not connected";
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.mood", name, mood, points, recovery, fade, damage, hook), false);
+
+            String block = switch (SanityRecovery.baseRecoveryBlock(player, dim))
+            {
+                case SanityRecovery.BLOCK_NONE -> "runs";
+                case SanityRecovery.BLOCK_NOT_CALM -> "stopped (no Depression state, combat, player event or PTSD countdown)";
+                default -> "stopped (too dark)";
+            };
+            String campfire = String.valueOf(s.isCampfireNear());
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.gate", name, block, campfire), false);
+
+            long mentalTicks = DepressionLink.readMentalTickCount(player);
+            String max = "n/a";
+            String level = "n/a";
+            if (mentalTicks >= 0L)
+            {
+                double ptsd = DepressionLink.readCurrentMaxPtsd(player);
+                max = String.format("%.2f", ptsd);
+                level = String.valueOf(PtsdEdgeTracker.levelOf(ptsd));
+            }
+            PtsdEdgeTracker edge = s.getPtsdEdge();
+            String paid = edge.isArmed() ? String.valueOf(edge.getBilledLevel()) : "baseline pending";
+            String calm = edge.getCalmSamples() + " of " + ConfigProxy.getPtsdRearmSeconds(dim);
+            String maxText = max;
+            String levelText = level;
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.ptsd", name, maxText, levelText, paid, calm), false);
+            ++shown;
+        }
+        return shown;
+    }
+
+    /**
+     * Reloads the dimension overrides. A reload whose [sanity.link] values are rejected leaves the previous
+     * overrides in place and reports the reason.
+     */
+    private static int reloadConfig(CommandSourceStack stack) throws CommandSyntaxException
+    {
+        DimensionConfig.Snapshot before = DimensionConfig.snapshot();
+        try
+        {
+            DimensionConfig.init();
+            ConfigManager.validateLinkConfig();
+        }
+        catch (LinkConfigSpec.LinkConfigException e)
+        {
+            DimensionConfig.restore(before);
+            SanityMod.LOGGER.error("[{}] dimension config reload rejected, the previous overrides stay active", SanityMod.MOD_ID, e);
+            throw new SimpleCommandExceptionType(Component.literal("Dimension config reload rejected, the previous overrides stay active: " + e.getMessage())).create();
+        }
         stack.sendSuccess(() -> Component.translatable("commands.sanity.config.reload"), true);
         return 1;
     }

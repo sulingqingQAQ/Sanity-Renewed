@@ -41,6 +41,36 @@ public abstract class ConfigManager
         proxies.put("sanity.recovery.campfire_per_second", new ProxyValueEntry<>(() -> getDefault().m_campfireRecovery.get(), ConfigManager::noFinalize));
         proxies.put("sanity.recovery.campfire_radius", new ProxyValueEntry<>(() -> getDefault().m_campfireRadius.get(), ConfigManager::noFinalize));
 
+        // sanity.link (2A: mood / sanity / PTSD coupling; every key is checked by LinkConfigSpec when the config is loaded)
+        proxies.put("sanity.link.link_enabled", new ProxyValueEntry<>(() -> getDefault().m_linkEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_enabled", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_e1", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryE1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_e2", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryE2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_e3", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryE3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_m0", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryM0.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_m1", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryM1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_m2", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryM2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.mood_recovery_m3", new ProxyValueEntry<>(() -> getDefault().m_moodRecoveryM3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sanity_mood_enabled", new ProxyValueEntry<>(() -> getDefault().m_sanityMoodEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sanity_s1", new ProxyValueEntry<>(() -> getDefault().m_sanityS1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sanity_s2", new ProxyValueEntry<>(() -> getDefault().m_sanityS2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sanity_s3", new ProxyValueEntry<>(() -> getDefault().m_sanityS3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.stabilize_m0", new ProxyValueEntry<>(() -> getDefault().m_stabilizeM0.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.stabilize_m1", new ProxyValueEntry<>(() -> getDefault().m_stabilizeM1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.stabilize_m2", new ProxyValueEntry<>(() -> getDefault().m_stabilizeM2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.stabilize_m3", new ProxyValueEntry<>(() -> getDefault().m_stabilizeM3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.damage_m0", new ProxyValueEntry<>(() -> getDefault().m_damageM0.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.damage_m1", new ProxyValueEntry<>(() -> getDefault().m_damageM1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.damage_m2", new ProxyValueEntry<>(() -> getDefault().m_damageM2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.damage_m3", new ProxyValueEntry<>(() -> getDefault().m_damageM3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_enabled", new ProxyValueEntry<>(() -> getDefault().m_ptsdEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_penalty_1", new ProxyValueEntry<>(() -> getDefault().m_ptsdPenalty1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_penalty_2", new ProxyValueEntry<>(() -> getDefault().m_ptsdPenalty2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_penalty_3", new ProxyValueEntry<>(() -> getDefault().m_ptsdPenalty3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_penalty_4", new ProxyValueEntry<>(() -> getDefault().m_ptsdPenalty4.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_rearm_seconds", new ProxyValueEntry<>(() -> getDefault().m_ptsdRearmSeconds.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.ptsd_log", new ProxyValueEntry<>(() -> getDefault().m_ptsdLog.get(), ConfigManager::noFinalize));
+
         // sanity.phase3 (inner entities; all default off / conservative, dimension overridable like any other key)
         proxies.put("sanity.phase3.inner_entity_spawning", new ProxyValueEntry<>(() -> getDefault().m_phase3InnerEntitySpawning.get(), ConfigManager::noFinalize));
         proxies.put("sanity.phase3.spawn_failure_cooldown_ticks", new ProxyValueEntry<>(() -> getDefault().m_phase3SpawnFailureCooldown.get(), ConfigManager::noFinalize));
@@ -156,6 +186,23 @@ public abstract class ConfigManager
         defBrokenBlocks = ConfigManager.processBrokenBlocks(getDefault().m_brokenBlocks.get());
         defBrokenBlockCats = ConfigManager.processBrokenBlockCats(getDefault().m_brokenBlockCats.get());
         defIdToBrokenBlockCat = ConfigManager.getMapFromBrokenBlockCats(defBrokenBlockCats);
+        validateLinkConfig();
+    }
+
+    /**
+     * Cross-key checks of the {@code [sanity.link]} section (see {@link LinkConfigSpec#checkCombination}) for the default
+     * config and for every dimension that overrides any of its keys. Runs when the default config is loaded or reloaded
+     * and after {@code /sanity config reload}; throws {@link LinkConfigSpec.LinkConfigException} for the first problem.
+     */
+    public static void validateLinkConfig()
+    {
+        LinkConfigSpec.checkCombination(key -> proxies.get(LinkConfigSpec.PREFIX + key).defaultValue(), "default.toml");
+
+        Set<ResourceLocation> dims = new TreeSet<>();
+        for (LinkConfigSpec.Entry entry : LinkConfigSpec.ENTRIES)
+            dims.addAll(DimensionConfig.configToDimStored.get(LinkConfigSpec.PREFIX + entry.key()).keySet());
+        for (ResourceLocation dim : dims)
+            LinkConfigSpec.checkCombination(key -> proxy(LinkConfigSpec.PREFIX + key, dim), "dimension " + dim);
     }
 
     public static boolean stringEntryIsValid(Object entry)

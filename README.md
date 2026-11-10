@@ -83,6 +83,17 @@ The mod also includes dimension-specific configuration support through ``config/
 
 <p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
 
+## Depression addon: mood, sanity and PTSD (2A)
+
+When it runs next to the Depression mod, the three values talk to each other through multipliers and one-off events only. Nothing is converted, and nothing is written into Depression's mood or mental health. All numbers are in the `[sanity.link]` config section (28 keys, each with a plain-language hint) and can be overridden per dimension; a wrong dimension override (type, range, unknown key), or a combination that breaks the ordering rules (strictly descending thresholds, non-decreasing PTSD totals) in `default.toml` or in any dimension, stops the game at start-up (or makes `/sanity config reload` fail and keep the old overrides). In `default.toml` itself NeoForge puts a single out-of-range value back to its default and writes a warning to the log.
+
+* **Bad mood slows the base recovery.** The calm, bright-place recovery (+0.05 S/s) is multiplied by x1 / x0.75 / x0.5 / x0 for mood >= 0 / above -5 / above -10 / at or below -10. Campfire recovery is never affected.
+* **Low sanity makes a bad mood last longer and hurts more.** Negative mood fades x1 / x0.75 / x0.5 / x0.25 as fast, and every psychological damage is x1 / x1 / x1.15 / x1.30, for sanity >= 70 / >= 40 / >= 20 / below 20. This needs a Depression build that has the multiplier hook (`MentalModifiers`); with an older build the addon logs `modifiers unavailable` and only the other two links work. The damage factor also scales Depression's smaller hits (PTSD episodes, death, pet death, insomnia) and hits that other mods send through Depression's API.
+* **PTSD costs sanity once per episode.** When the PTSD level (1 to 4, as Depression shows it) rises, you pay the difference to the next total (default totals 2 / 4 / 6 / 8 S, multiplied by `negative_multiplier`). Dropping to a lower, non-zero level does not end the episode; only the level staying at 0 for `ptsd_rearm_seconds` (default 10) in a row does, and only then the next rise costs again.
+* `/sanity link [targets]` (permission 2, read-only) prints mood, sanity, the three multipliers, what stops the base recovery and the PTSD ledger of the targets. Asking never changes anything.
+
+<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+
 ## Important Notice
 This is the 1.20+ unofficial continuation of Sanity: Descent Into Madness, originally created by croissantnova for Forge 1.16-1.20.1. The license is MIT, and i've decided to pick up the project since it hasn't been updated since 2023. Croissantnova [recently said he's working on a new project](https://github.com/croissantnova/SanityDescentIntoMadness/pull/93#issuecomment-2746349988) and he plans to get back to working on Sanity: Descent Into Madness when he deems it polished enough for publish. 
 

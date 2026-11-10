@@ -23,9 +23,28 @@ public abstract class DimensionConfig
     public static final Map<ResourceLocation, Map<Integer, ConfigItemCategory>> idToItemCat = new HashMap<>();
     public static final Map<ResourceLocation, Map<Integer, ConfigBrokenBlockCategory>> idToBrokenBlockCat = new HashMap<>();
 
-    private static void unloadDimension(String dim, Config config)
+    /**
+     * Rejects a dimension file whose {@code [sanity.link]} part has an unknown key, a value of the wrong type or a value
+     * outside its range (these values are stored raw and never pass through {@code defineInRange}).
+     */
+    private static void checkLinkOverrides(String origin, Config config)
+    {
+        Object section = config.get("sanity.link");
+        if (section == null)
+            return;
+        if (!(section instanceof Config link))
+            throw new LinkConfigSpec.LinkConfigException(origin + ": sanity.link must be a table");
+        for (var entry : link.entrySet())
+        {
+            Object value = entry.getValue();
+            LinkConfigSpec.checkValue(entry.getKey(), value, origin);
+        }
+    }
+
+    private static void unloadDimension(String file, String dim, Config config)
     {
         ResourceLocation name = ResourceLocation.parse(dim);
+        checkLinkOverrides(file + " (" + dim + ")", config);
         for (Map.Entry<String, Map<ResourceLocation, Object>> entry : configToDimStored.entrySet())
         {
             String key = entry.getKey();
@@ -114,11 +133,15 @@ public abstract class DimensionConfig
                         SanityMod.LOGGER.info("Applying dimension config " + path.getFileName());
                         for (String dim : dims)
                         {
-                            unloadDimension(dim, config);
+                            unloadDimension(path.getFileName().toString(), dim, config);
                         }
                     }
                 }
             });
+        }
+        catch (LinkConfigSpec.LinkConfigException e)
+        {
+            throw e; // a rejected [sanity.link] value must not be swallowed by the generic handler below
         }
         catch (Exception e)
         {
@@ -133,5 +156,34 @@ public abstract class DimensionConfig
         configToDimStored.clear();
         idToItemCat.clear();
         idToBrokenBlockCat.clear();
+    }
+
+    /** Everything {@link #init()} replaces, so that a rejected reload can put the previous state back. */
+    public static final class Snapshot
+    {
+        private final Map<String, Map<ResourceLocation, Object>> stored = copyNested(configToDimStored);
+        private final Map<ResourceLocation, Map<Integer, ConfigItemCategory>> itemCats = copyNested(idToItemCat);
+        private final Map<ResourceLocation, Map<Integer, ConfigBrokenBlockCategory>> brokenBlockCats = copyNested(idToBrokenBlockCat);
+    }
+
+    public static Snapshot snapshot()
+    {
+        return new Snapshot();
+    }
+
+    public static void restore(Snapshot snapshot)
+    {
+        clear();
+        configToDimStored.putAll(snapshot.stored);
+        idToItemCat.putAll(snapshot.itemCats);
+        idToBrokenBlockCat.putAll(snapshot.brokenBlockCats);
+    }
+
+    private static <A, B, C> Map<A, Map<B, C>> copyNested(Map<A, Map<B, C>> source)
+    {
+        Map<A, Map<B, C>> copy = new HashMap<>();
+        for (Map.Entry<A, Map<B, C>> entry : source.entrySet())
+            copy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        return copy;
     }
 }

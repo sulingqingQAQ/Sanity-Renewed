@@ -9,6 +9,9 @@
 	"commands.sanity.get.success": "%s's sanity is %s (0-100, 100 = clear-headed)",
 	"commands.sanity.player_required": "/sanity get, set and add without targets need a player as executor, use <targets>",
 	"commands.sanity.config.reload": "Reloaded dimension configs successfully",
+	"commands.sanity.link.mood": "%s: mood e = %s, sanity S = %s | base recovery x%s, negative mood fade x%s, psychological damage x%s (Depression hook: %s)",
+	"commands.sanity.link.gate": "%s: base recovery %s; campfire near: %s",
+	"commands.sanity.link.ptsd": "%s: PTSD max %s = level %s; paid up to level %s in this episode; calm seconds %s",
 	
 	"gui.sanity_renewed.hint00": "What are these sounds?",
 	"gui.sanity_renewed.hint01": "I'm feeling a bit uneasy",

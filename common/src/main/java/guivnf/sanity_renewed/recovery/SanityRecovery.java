@@ -18,16 +18,17 @@ import net.minecraft.world.phys.Vec3;
  *
  * <ul>
  *   <li><b>Base recovery</b>, {@code +0.05 S/s} by default: only while {@link DepressionLink#isCalmForBaseRecovery}
- *       holds and the local light at the eyes is at least {@code base_min_light} (default 10, to be tuned).</li>
+ *       holds and the local light at the eyes is at least {@code base_min_light} (default 10, to be tuned).
+ *       2A: it is multiplied by {@link MoodCoupling#baseRecoveryMultiplier} (a bad mood slows it down, down to 0 by default).</li>
  *   <li><b>Campfire recovery</b>, {@code +0.10 S/s} by default: a lit campfire within {@code campfire_radius}
  *       blocks (default 4) with line of sight. Several campfires count once. It does not depend on the base
- *       safety gate (combat, PTSD, light) and there is no mood multiplier in phase 1.</li>
+ *       safety gate (combat, PTSD, light) and the mood multiplier never applies to it.</li>
  * </ul>
  * The two add up when both apply. The original passive "campfire" block source is closed in
  * {@code SanitySourceGate}, so a campfire is never counted twice.
  *
  * <p>Rates are sanity points per second (S, 100 = clear-headed); one tick applies {@code rate / 20}.
- * Nothing here reads or writes Depression's mood or mental health values.
+ * Nothing here writes Depression's mood or mental health values; the mood is only read (through {@link MoodCoupling}).
  */
 public final class SanityRecovery
 {
@@ -41,15 +42,15 @@ public final class SanityRecovery
     {
         ResourceLocation dim = player.level().dimension().location();
 
-        float gainPerTick = 0f;
-
         float baseRate = ConfigProxy.getBaseRecoveryPerSecond(dim);
-        if (baseRate > 0f && isBaseRecoveryAllowed(player, dim))
-            gainPerTick += baseRate / 20f;
+        boolean baseAllowed = baseRate > 0f && isBaseRecoveryAllowed(player, dim);
+        // 2A: the mood multiplier applies to the BASE recovery only, the campfire below is not scaled by it
+        float moodMul = baseAllowed ? MoodCoupling.baseRecoveryMultiplier(player, dim) : 1f;
 
         float campfireRate = ConfigProxy.getCampfireRecoveryPerSecond(dim);
-        if (campfireRate > 0f && isNearLitCampfire(player, sanity, dim))
-            gainPerTick += campfireRate / 20f;
+        boolean campfireNear = campfireRate > 0f && isNearLitCampfire(player, sanity, dim);
+
+        float gainPerTick = MoodTables.gainPerTick(baseAllowed, baseRate, moodMul, campfireNear, campfireRate);
 
         float before = sanity.getSanity();
         if (gainPerTick > 0f)
@@ -57,12 +58,21 @@ public final class SanityRecovery
         sanity.setPassiveIncrease(sanity.getSanity() - before); // <= 0 while recovering, 0 otherwise (also when clamped at S = 100)
     }
 
-    private static boolean isBaseRecoveryAllowed(ServerPlayer player, ResourceLocation dim)
+    /** Result codes of {@link #baseRecoveryBlock}. */
+    public static final int BLOCK_NONE = 0, BLOCK_NOT_CALM = 1, BLOCK_DARK = 2;
+
+    /** What stops the base recovery of this player right now (read-only, also used by {@code /sanity link}). */
+    public static int baseRecoveryBlock(ServerPlayer player, ResourceLocation dim)
     {
         if (!DepressionLink.isCalmForBaseRecovery(player))
-            return false;
+            return BLOCK_NOT_CALM;
         BlockPos eyes = BlockPos.containing(player.getEyePosition());
-        return player.level().getMaxLocalRawBrightness(eyes) >= ConfigProxy.getBaseRecoveryMinLight(dim);
+        return player.level().getMaxLocalRawBrightness(eyes) >= ConfigProxy.getBaseRecoveryMinLight(dim) ? BLOCK_NONE : BLOCK_DARK;
+    }
+
+    private static boolean isBaseRecoveryAllowed(ServerPlayer player, ResourceLocation dim)
+    {
+        return baseRecoveryBlock(player, dim) == BLOCK_NONE;
     }
 
     private static boolean isNearLitCampfire(ServerPlayer player, Sanity sanity, ResourceLocation dim)
