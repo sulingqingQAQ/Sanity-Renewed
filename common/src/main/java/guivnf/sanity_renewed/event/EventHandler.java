@@ -70,10 +70,19 @@ public final class EventHandler
             Sanity to = SanityHolder.get(newPlayer);
             if (from != null && to != null)
                 to.copyPersistentFrom(from);
-            // UUID-keyed spawn cooldown is per player object lifecycle: start the clone clean.
-            InnerEntitySpawner.onPlayerClone(
-                    oldPlayer instanceof ServerPlayer oldSp ? oldSp : null,
-                    newPlayer instanceof ServerPlayer newSp ? newSp : null);
+
+            // The UUID-keyed spawn cooldown is dropped together with the player object, except for a death respawn in
+            // the dimension the player died in: that one keeps the remaining retry budget (the remaining number of
+            // eligible spawn attempts, not wall-clock time -- it does not count down while dead). wonGame is the
+            // end-portal return, which always drops it. Keep the !wonGame check: a respawn point forced into the End
+            // makes that return END to END, which the dimension check alone would keep. See
+            // InnerEntitySpawner#onPlayerClone.
+            ServerPlayer oldSp = oldPlayer instanceof ServerPlayer o ? o : null;
+            ServerPlayer newSp = newPlayer instanceof ServerPlayer n ? n : null;
+            if (!wonGame && oldSp != null && newSp != null
+                    && oldSp.level().dimension().equals(newSp.level().dimension()))
+                return;
+            InnerEntitySpawner.onPlayerClone(oldSp, newSp);
         });
 
         // Phase 3: release the UUID-keyed spawn cooldown when a player leaves so the map cannot grow
@@ -83,9 +92,13 @@ public final class EventHandler
             if (player instanceof ServerPlayer sp)
                 InnerEntitySpawner.onPlayerQuit(sp);
         });
+        // Only the end-portal return still has to clean up here: a normal death respawn keeps a same-dimension
+        // player's remaining cooldown in the clone callback above, and firing the cleanup again for it would delete
+        // what the clone callback just kept. The end-portal return reaches both callbacks; the repeated removal is
+        // idempotent.
         PlayerEvent.PLAYER_RESPAWN.register((player, conqueredEnd, removalReason) ->
         {
-            if (player instanceof ServerPlayer sp)
+            if (conqueredEnd && player instanceof ServerPlayer sp)
                 InnerEntitySpawner.onPlayerChangedDimension(sp);
         });
 

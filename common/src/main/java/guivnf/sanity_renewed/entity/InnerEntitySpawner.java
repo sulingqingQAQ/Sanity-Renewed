@@ -39,9 +39,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *       Success keeps the original longer, kill-count-scaled cooldown.</li>
  *   <li><b>UUID-keyed cooldown map</b>: {@link #PLAYER_TO_SPAWN_TIMEOUT} is keyed by {@link UUID}
  *       instead of holding a strong reference to the {@link ServerPlayer}. Entries are removed on
- *       quit, dimension change, clone (death/end-portal return) and server stop — see
- *       {@link #onPlayerQuit}, {@link #onPlayerChangedDimension}, {@link #onPlayerClone},
- *       {@link #clearAll}.</li>
+ *       quit, on a {@code CHANGE_DIMENSION}, on the {@code PLAYER_CLONE} of an end-portal return
+ *       ({@code wonGame}, whatever its target dimension: a respawn point forced into the End makes it
+ *       END to END) or of a death respawn that lands in another dimension, on the
+ *       {@code PLAYER_RESPAWN} of an end-portal return, and on server stop — see {@link #onPlayerQuit},
+ *       {@link #onPlayerChangedDimension}, {@link #onPlayerClone}, {@link #clearAll}. A death respawn
+ *       in the dimension the player died in keeps the remaining value: it is the remaining number of
+ *       eligible spawn attempts (ticks of living, non-creative play), not wall-clock time, and it does
+ *       not count down while the player is dead.</li>
  * </ul>
  *
  * <p>Spawning is still double-gated: the compile-time phase-1 {@link SanitySourceGate#INNER_ENTITY_SPAWNING}
@@ -226,14 +231,31 @@ public final class InnerEntitySpawner
             PLAYER_TO_SPAWN_TIMEOUT.remove(player.getUUID());
     }
 
-    /** CHANGE_DIMENSION: the old cooldown belonged to the old world's spawn context. */
+    /**
+     * {@code CHANGE_DIMENSION}, and the {@code PLAYER_RESPAWN} of an end-portal return: the old cooldown
+     * belonged to the old spawn context, so it is dropped. In the current Minecraft 1.21.1 / NeoForge
+     * chain an end-portal return does not fire {@code CHANGE_DIMENSION}; its {@code PLAYER_CLONE}
+     * ({@code wonGame}) already went through {@link #onPlayerClone}, even when a respawn point forced
+     * into the End keeps it END to END, so the removal here is a harmless second no-op. Idempotent by
+     * design — removing an absent entry does nothing.
+     */
     public static void onPlayerChangedDimension(ServerPlayer player)
     {
         if (player != null)
             PLAYER_TO_SPAWN_TIMEOUT.remove(player.getUUID());
     }
 
-    /** PLAYER_CLONE (death / end-portal return): a fresh player object starts without a retry budget. */
+    /**
+     * {@code PLAYER_CLONE}: drop the retry budget of the old and of the new player object (they share
+     * the UUID).
+     *
+     * <p>Fired for every end-portal return ({@code wonGame}, also an END to END one when a respawn point
+     * is forced into the End) and for a death respawn that lands in another dimension. It is
+     * deliberately NOT called for a death respawn in the dimension the player died in: that keeps the
+     * remaining value, because it counts remaining spawn attempts (ticks of living, non-creative
+     * play) and not wall-clock time. The value is left untouched, so it is neither reset nor charged
+     * twice by the two callbacks of one respawn.
+     */
     public static void onPlayerClone(ServerPlayer oldPlayer, ServerPlayer newPlayer)
     {
         if (oldPlayer != null)
