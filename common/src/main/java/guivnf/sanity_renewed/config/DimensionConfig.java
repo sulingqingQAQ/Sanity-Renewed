@@ -123,7 +123,8 @@ public abstract class DimensionConfig
         {
             paths.forEach(path ->
             {
-                if (path.toString().endsWith(".toml") && !path.toString().equals("example.toml"))
+                // Compare the file name, not the full path: the generated example.toml must never be applied.
+                if (path.toString().endsWith(".toml") && !path.getFileName().toString().equals("example.toml"))
                 {
                     FileConfig config = FileConfig.of(path);
                     config.load();
