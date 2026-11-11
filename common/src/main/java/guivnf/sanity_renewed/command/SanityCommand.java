@@ -205,6 +205,9 @@ public final class SanityCommand
             SanityMod.LOGGER.error("[{}] dimension config reload rejected, the previous overrides stay active", SanityMod.MOD_ID, e);
             throw new SimpleCommandExceptionType(Component.literal("Dimension config reload rejected, the previous overrides stay active: " + e.getMessage())).create();
         }
+        // Only an accepted reload resets the warn-once memo. The rejected branch above restored the previous
+        // overrides, so the previous warnings are still the truthful ones and must not be re-armed.
+        ConfigProxy.onConfigAccepted();
         stack.sendSuccess(() -> Component.translatable("commands.sanity.config.reload"), true);
         return 1;
     }

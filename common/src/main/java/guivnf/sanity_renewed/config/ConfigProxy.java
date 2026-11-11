@@ -189,13 +189,41 @@ public abstract class ConfigProxy
         return new float[] { 0f, getPtsdPenalty1(dim), getPtsdPenalty2(dim), getPtsdPenalty3(dim), getPtsdPenalty4(dim) };
     }
 
-    // --- phase 3: inner entities (default off) --------------------------------------------------
-    // These four are read on the server's per-player tick, so they never throw. A key that is not registered, a
-    // dimension override of the wrong type or outside the range declared in ConfigDefault (dimension overrides are
-    // stored raw), or any error while reading gives the safe value instead: spawning off, 20 t / 20 / 40.
-    // Each key and dimension is warned about once.
+    // --- config warnings (phase 3 inner entities, client heartbeat) ------------------------------
+    // Both read sites run per tick, so a bad config value must not throw there. For the phase3 keys below, a key that
+    // is not registered, a dimension override of the wrong type or outside the range declared in ConfigDefault
+    // (dimension overrides are stored raw), or any error while reading gives the safe value instead: spawning off,
+    // 20 t / 20 / 40. The client heartbeat key (getHeartbeatYieldToDepression) is narrower: it only catches the
+    // ClassCastException raised inside ConfigManager.proxy by this entry's own finalizer, so its other internal
+    // failures still propagate.
+    // Each key and dimension is warned about once. Use onConfigAccepted() when a config was accepted so that a value
+    // which is still bad is reported again.
 
-    private static final Set<String> PHASE3_WARNED = ConcurrentHashMap.newKeySet();
+    private static final Set<String> CONFIG_WARNED = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Marks that a config was accepted and clears the warn-once memo, so that a value which is still bad is reported
+     * again on its next read instead of staying silent for the rest of the process.
+     *
+     * <p>Call this only on an <b>accepting</b> boundary, i.e. after the new values were taken and nothing was rolled
+     * back:
+     * <ul>
+     *   <li>{@link ConfigManager#onConfigLoading()} after {@link ConfigManager#validateLinkConfig()} returned normally
+     *       (the NeoForge {@code ModConfigEvent.Loading} and {@code ModConfigEvent.Reloading} listeners both run it);</li>
+     *   <li>{@code SanityCommand#reloadConfig} after its try block succeeded and before it reports success.</li>
+     * </ul>
+     * A rejected reload must <b>not</b> call it: the previous values stay active, so the previous warnings are still
+     * the truthful ones.
+     *
+     * <p>The memo is keyed by {@code path@dim}, so clearing it costs at most one extra warning per bad key and
+     * dimension - never one per tick. Nothing is enumerated or read here: a dimension that is never read stays
+     * lazily reported, and no network synchronisation is involved (a server command resets the server JVM only, a
+     * client config event resets the client JVM only).
+     */
+    public static void onConfigAccepted()
+    {
+        CONFIG_WARNED.clear();
+    }
 
     /** Explicit operator switch for new inner entity spawns. Default false keeps phase-1 behaviour. */
     public static boolean getPhase3InnerEntitySpawning(ResourceLocation dim)
@@ -204,7 +232,7 @@ public abstract class ConfigProxy
         Object value = phase3Value(path, dim);
         if (value instanceof Boolean enabled)
             return enabled;
-        phase3Warn(path, dim, "is " + describe(value) + " instead of true/false, spawning stays off");
+        configWarn(path, dim, "is " + describe(value) + " instead of true/false, spawning stays off");
         return false;
     }
 
@@ -228,7 +256,7 @@ public abstract class ConfigProxy
         Object value = phase3Value(path, dim);
         if (value instanceof Integer i && i >= min && i <= max)
             return i;
-        phase3Warn(path, dim, "is " + describe(value) + " instead of a whole number in [" + min + ", " + max + "], using " + fallback);
+        configWarn(path, dim, "is " + describe(value) + " instead of a whole number in [" + min + ", " + max + "], using " + fallback);
         return fallback;
     }
 
@@ -246,14 +274,14 @@ public abstract class ConfigProxy
         }
         catch (RuntimeException e)
         {
-            phase3Warn(path, dim, "could not be read (" + e + ")");
+            configWarn(path, dim, "could not be read (" + e + ")");
             return null;
         }
     }
 
-    private static void phase3Warn(String path, ResourceLocation dim, String problem)
+    private static void configWarn(String path, ResourceLocation dim, String problem)
     {
-        if (PHASE3_WARNED.add(path + "@" + dim))
+        if (CONFIG_WARNED.add(path + "@" + dim))
             SanityMod.LOGGER.warn("[{}] config {} (dimension {}) {}", SanityMod.MOD_ID, path, dim, problem);
     }
 
@@ -597,9 +625,37 @@ public abstract class ConfigProxy
         return ConfigManager.proxyd2f("sanity.client.insanity_volume", dim);
     }
 
-    /** Phase 3: client-only. When true, the SR heartbeat yields during a Depression PTSD onset. */
+    /**
+     * Phase 3: client-only. When true, the SR heartbeat yields during a Depression PTSD onset.
+     *
+     * <p>Called per client tick, and a bad config value does not throw: a key that is not registered or has no stored
+     * entry, a null value, a wrong type, or a dimension override the proxy cannot pass through its finalizer all fall
+     * back to {@code true} - the documented default and the safe direction (the heartbeat keeps yielding to
+     * Depression). A valid value is returned as is: without a dimension override that is the default.toml value, true
+     * or false, which is a normal case and does not warn; a correctly typed {@code false} turns the yield off. Other
+     * internal failures still propagate: the only exception caught here is the {@link ClassCastException} raised
+     * inside {@link ConfigManager#proxy} by this entry's parameterized finalizer. Each bad {@code key@dim} is reported
+     * once, until a config is accepted again.
+     */
     public static boolean getHeartbeatYieldToDepression(ResourceLocation dim)
     {
-        return ConfigManager.proxyb("sanity.client.heartbeat_yield_to_depression", dim);
+        String path = "sanity.client.heartbeat_yield_to_depression";
+        Object value;
+        try
+        {
+            value = ConfigManager.proxy(path, dim);
+        }
+        catch (ClassCastException e)
+        {
+            // The finalizer of this entry is the parameterized noFinalize(Boolean), so a raw dimension override of
+            // another type is already rejected by the cast inside ConfigManager.proxy. Catch it here, at this one
+            // external read, instead of widening any catch or wrapping the whole client tick in a try block.
+            configWarn(path, dim, "could not be read (" + e + "), keeping the PTSD yield (true)");
+            return true;
+        }
+        if (value instanceof Boolean enabled)
+            return enabled;
+        configWarn(path, dim, "is " + describe(value) + " instead of true/false, keeping the PTSD yield (true)");
+        return true;
     }
 }

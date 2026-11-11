@@ -187,6 +187,7 @@ public abstract class ConfigManager
         defBrokenBlockCats = ConfigManager.processBrokenBlockCats(getDefault().m_brokenBlockCats.get());
         defIdToBrokenBlockCat = ConfigManager.getMapFromBrokenBlockCats(defBrokenBlockCats);
         validateLinkConfig();
+        ConfigProxy.onConfigAccepted();
     }
 
     /**
