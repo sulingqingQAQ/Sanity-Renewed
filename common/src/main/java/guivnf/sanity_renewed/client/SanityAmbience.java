@@ -7,6 +7,7 @@ import guivnf.sanity_renewed.sound.SanitySoundInstances;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -51,6 +52,7 @@ public final class SanityAmbience
     private static float insanityStart, heartbeatStart;
     private static float insanityTarget, heartbeatTarget;
     private static int   insanityProgress, heartbeatProgress;
+    private static int   loopCheckTicks;
 
     private static int stepCooldown = nextStep();
     private static int miscCooldown = nextMisc();
@@ -90,6 +92,17 @@ public final class SanityAmbience
         float insanityFactor  = Mth.clamp(Mth.inverseLerp(sanity, .55f, .8f), 0f, 1f);
         float heartbeatFactor = Mth.clamp(Mth.inverseLerp(sanity, .7f,  .8f), 0f, 1f);
 
+        // Phase 3 audio boundary: Depression plays its own heartbeat/breathing during a PTSD onset.
+        // Yield this addon's heartbeat then (configurable) so the two loops never overlap. The
+        // insanity drone and the fake footsteps keep playing regardless.
+        ResourceLocation dim = player.level().dimension().location();
+        if (heartbeatFactor > 0f
+                && ConfigProxy.getHeartbeatYieldToDepression(dim)
+                && DepressionClientBridge.isPtsdOnsetActive())
+        {
+            heartbeatFactor = 0f;
+        }
+
         crossfade(insanity, insanityFactor, true);
         crossfade(heartbeat, heartbeatFactor, false);
 
@@ -101,14 +114,27 @@ public final class SanityAmbience
 
     private static void ensureLoops(Minecraft mc)
     {
-        if (insanity == null || insanity.isStopped())
+        // The sound engine can drop a loop without marking it stopped: vanilla SoundEngine.updateCategoryVolume stops
+        // every channel whose volume is 0, and ours sit at 0 while the player is sane or while the heartbeat yields to
+        // a Depression PTSD onset. So also restart a loop the engine no longer plays, keeping its fade factor.
+        // Checked once a second, so a full sound pool cannot turn it into a retry (and a warning) every tick.
+        boolean check = ++loopCheckTicks >= 20;
+        if (check)
+            loopCheckTicks = 0;
+        if (insanity == null || insanity.isStopped() || (check && !mc.getSoundManager().isActive(insanity)))
         {
+            float factor = 0f;
+            if (insanity != null) { factor = insanity.factor; insanity.stopNow(); }
             insanity = new SanitySoundInstances.Insanity();
+            insanity.factor = factor;
             mc.getSoundManager().play(insanity);
         }
-        if (heartbeat == null || heartbeat.isStopped())
+        if (heartbeat == null || heartbeat.isStopped() || (check && !mc.getSoundManager().isActive(heartbeat)))
         {
+            float factor = 0f;
+            if (heartbeat != null) { factor = heartbeat.factor; heartbeat.stopNow(); }
             heartbeat = new SanitySoundInstances.Heartbeat();
+            heartbeat.factor = factor;
             mc.getSoundManager().play(heartbeat);
         }
     }

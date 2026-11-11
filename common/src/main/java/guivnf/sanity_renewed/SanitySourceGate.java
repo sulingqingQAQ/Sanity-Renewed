@@ -29,8 +29,14 @@ public final class SanitySourceGate
      */
     public static final boolean LEGACY_ACTIVE_SOURCES = false;
 
-    /** New inner entities are not spawned in phase 1 (spawn / attack / target fixes belong to phase 3). */
-    public static final boolean INNER_ENTITY_SPAWNING = false;
+    /**
+     * Compile-time phase gate for inner entity spawning. Phase 1 shipped with {@code false}.
+     * Phase 3 opens this gate, but spawning is still OFF by default at runtime: it additionally
+     * requires the explicit operator switch {@code sanity.phase3.inner_entity_spawning = true}
+     * (see {@link guivnf.sanity_renewed.entity.Phase3Features}), so a fresh install keeps the exact
+     * phase-1 behaviour (no new inner entities) until an operator opts in.
+     */
+    public static final boolean INNER_ENTITY_SPAWNING = true;
 
     private SanitySourceGate() {}
 }

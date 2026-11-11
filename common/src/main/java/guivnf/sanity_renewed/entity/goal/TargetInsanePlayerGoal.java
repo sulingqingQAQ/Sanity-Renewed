@@ -69,9 +69,12 @@ public class TargetInsanePlayerGoal extends TargetGoal
 
     private Player getMostInsanePlayer()
     {
+        // Phase 3: bounded by the mob's own follow range instead of a whole-level scan, so an inner
+        // entity can no longer lock onto a player on the other side of the world.
+        double followRange = getFollowDistance();
         return m_sanityThreshold < 0f
-                ? SanityProcessor.getMostInsanePlayer(mob.level())
-                : SanityProcessor.getMostInsanePlayer(mob.level(), m_sanityThreshold);
+                ? SanityProcessor.getMostInsanePlayer(mob, SanityProcessor.SANITY_TARGET_THRESHOLD, followRange)
+                : SanityProcessor.getMostInsanePlayer(mob, m_sanityThreshold, followRange);
     }
 
     protected void alertOthers()

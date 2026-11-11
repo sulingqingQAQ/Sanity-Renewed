@@ -1,37 +1,88 @@
 package guivnf.sanity_renewed.entity;
 
 import guivnf.sanity_renewed.SanityProcessor;
-import guivnf.sanity_renewed.capability.InnerEntityCapImpl;
 import guivnf.sanity_renewed.capability.Sanity;
 import guivnf.sanity_renewed.capability.SanityHolder;
 import guivnf.sanity_renewed.config.ConfigProxy;
 import guivnf.sanity_renewed.sound.SoundRegistry;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
+import java.util.UUID;
+
 public abstract class InnerEntity extends Monster
 {
     /**
-     * Carries the inner entity's view/target state so it can be replicated to clients.
-     * Replaces the Forge capability with an instance field — same semantics, simpler.
+     * Synced "target player" state, replacing the old {@code InnerEntityCapImpl} whose
+     * serialize/deserialize methods were never called by anything (the field was effectively dead:
+     * the targeted-player visibility branch never fired and the run animation never played).
+     *
+     * <p>{@code Optional<UUID>} is vanilla-serializable ({@link EntityDataSerializers#OPTIONAL_UUID})
+     * and is replicated automatically with the entity's tracked data, on both loaders, without a
+     * custom payload. The value is the UUID of the player this inner entity is currently hunting
+     * (vanilla {@link #getTarget()}), or empty when it has no player target.
      */
-    private final InnerEntityCapImpl m_data = new InnerEntityCapImpl();
+    private static final EntityDataAccessor<Optional<UUID>> DATA_TARGET_UUID =
+            SynchedEntityData.defineId(InnerEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 
     protected InnerEntity(EntityType<? extends Monster> entityType, Level level)
     {
         super(entityType, level);
     }
 
-    public InnerEntityCapImpl getData()
+    @Override
+    protected void defineSynchedData(@NotNull SynchedEntityData.Builder builder)
     {
-        return m_data;
+        super.defineSynchedData(builder);
+        builder.define(DATA_TARGET_UUID, Optional.empty());
+    }
+
+    /**
+     * Server-side: publish the current target's player UUID into the synced field.
+     * Called once per server tick from {@link #tick()} so the client sees the same "who is it
+     * hunting" state the AI goal set via {@link #setTarget(LivingEntity)}.
+     */
+    private void syncTargetData()
+    {
+        if (level().isClientSide)
+            return;
+        LivingEntity target = getTarget();
+        UUID targetUuid = target instanceof Player player ? player.getUUID() : null;
+        Optional<UUID> stored = getEntityData().get(DATA_TARGET_UUID);
+        if (targetUuid == null)
+        {
+            if (stored.isPresent())
+                getEntityData().set(DATA_TARGET_UUID, Optional.empty());
+        }
+        else if (stored.isEmpty() || !targetUuid.equals(stored.get()))
+        {
+            getEntityData().set(DATA_TARGET_UUID, Optional.of(targetUuid));
+        }
+    }
+
+    /** Client and server: the UUID of the player this entity is currently hunting, if any. */
+    public Optional<UUID> getSyncedTargetUuid()
+    {
+        return getEntityData().get(DATA_TARGET_UUID);
+    }
+
+    @Override
+    public void tick()
+    {
+        super.tick();
+        syncTargetData();
     }
 
     public boolean isVisibleTo(Player player)
@@ -43,7 +94,10 @@ public abstract class InnerEntity extends Monster
                 || player.isCreative() || player.isSpectator())
             return true;
 
-        if (m_data.getPlayerTargetUUID() != null && m_data.getPlayerTargetUUID().equals(player.getUUID()))
+        // The previously dead branch: now backed by real synced data, so a targeted player always
+        // sees the thing hunting them even while their own insanity is still inside the 0.60-0.87
+        // "visible but untouchable" window.
+        if (getSyncedTargetUuid().map(uuid -> uuid.equals(player.getUUID())).orElse(false))
             return true;
 
         Sanity s = SanityHolder.get(player);
@@ -88,6 +142,9 @@ public abstract class InnerEntity extends Monster
             Sanity s = SanityHolder.get(player);
             if (s != null)
             {
+                // Kept as-is in phase 3: the legacy reward is still centrally closed by
+                // SanitySourceGate.LEGACY_ACTIVE_SOURCES until a later, separately-reviewed change
+                // decides what killing an inner entity does under the Depression addon rules.
                 SanityProcessor.addSanity(s, ConfigProxy.getInnerEntityKill(player.level().dimension().location()), player);
                 s.setInnerEntityKills(s.getInnerEntityKills() + 1);
             }

@@ -5,6 +5,7 @@ import guivnf.sanity_renewed.SanitySourceGate;
 import guivnf.sanity_renewed.capability.Sanity;
 import guivnf.sanity_renewed.capability.SanityHolder;
 import guivnf.sanity_renewed.command.SanityCommand;
+import guivnf.sanity_renewed.entity.InnerEntitySpawner;
 import guivnf.sanity_renewed.net.SanitySync;
 import guivnf.sanity_renewed.passive.Jukebox;
 import dev.architectury.event.EventResult;
@@ -55,7 +56,12 @@ public final class EventHandler
 
         // The client rebuilds its player object when the dimension changes: push the state again.
         PlayerEvent.CHANGE_DIMENSION.register((player, oldDim, newDim) ->
-                SanityProcessor.handlePlayerChangedDimensions(player));
+        {
+            SanityProcessor.handlePlayerChangedDimensions(player);
+            // The old world's spawn retry budget must not follow the player into the new dimension.
+            if (player instanceof ServerPlayer sp)
+                InnerEntitySpawner.onPlayerChangedDimension(sp);
+        });
 
         // Death / end-portal return creates a new player object: carry the sanity over, unchanged.
         PlayerEvent.PLAYER_CLONE.register((oldPlayer, newPlayer, wonGame) ->
@@ -64,6 +70,23 @@ public final class EventHandler
             Sanity to = SanityHolder.get(newPlayer);
             if (from != null && to != null)
                 to.copyPersistentFrom(from);
+            // UUID-keyed spawn cooldown is per player object lifecycle: start the clone clean.
+            InnerEntitySpawner.onPlayerClone(
+                    oldPlayer instanceof ServerPlayer oldSp ? oldSp : null,
+                    newPlayer instanceof ServerPlayer newSp ? newSp : null);
+        });
+
+        // Phase 3: release the UUID-keyed spawn cooldown when a player leaves so the map cannot grow
+        // across reconnects (the old implementation held strong ServerPlayer references forever).
+        PlayerEvent.PLAYER_QUIT.register(player ->
+        {
+            if (player instanceof ServerPlayer sp)
+                InnerEntitySpawner.onPlayerQuit(sp);
+        });
+        PlayerEvent.PLAYER_RESPAWN.register((player, conqueredEnd, removalReason) ->
+        {
+            if (player instanceof ServerPlayer sp)
+                InnerEntitySpawner.onPlayerChangedDimension(sp);
         });
 
         CommandRegistrationEvent.EVENT.register((dispatcher, registry, env) ->
@@ -73,6 +96,7 @@ public final class EventHandler
         {
             Jukebox.JUKEBOXES.clear();
             Jukebox.UNSETTLING_JUKEBOXES.clear();
+            InnerEntitySpawner.clearAll();
         });
     }
 
