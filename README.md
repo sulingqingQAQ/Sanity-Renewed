@@ -1,141 +1,182 @@
-<p align="center"><img src="https://github.com/user-attachments/assets/1de15a37-0aa8-4b50-a2c8-615a18202af4" style="width:800px;"/></p>
-
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker.png"  style="width:1000px;"/></p>
-
-# Sanity: Renewed 🧠
-
-Sanity: Renewed introduces a sanity meter inspired by Don't Starve, adding a new mechanic that forces players to manage their mental state alongside hunger and health. Darkness, isolation, hostile creatures, and dangerous situations slowly chip away at your sanity creating scary new situations & events around you, making the game harder.
+# Sanity: Renewed · Depression 附属
 
 <p align="center">
-  <img src="readme/sanity_animation.gif" style="width:292px; height:128px; object-fit:cover;"/>
-  <img src="readme/garland_craft.png" style="width:242px; height:128px; object-fit:cover;"/>
+  <img src="Sanity_Icon.png" alt="Sanity: Renewed" width="160" />
 </p>
 
-As your sanity decreases, reality begins to distort around you. Strange sounds echo through the world, your vision becomes blurry and unstable, shadows move in the distance, and hallucinations begin to appear. Ignore your mental state for too long, and your mind will eventually manifest deadly creatures known as Inner Entities.
+基于 **Sanity: Renewed** 改造的 **Depression 专属附属**。
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=ReNKOjPWhyo">
-    <img 
-      src="https://github.com/user-attachments/assets/411fea12-6b5e-4267-9a06-9cf8eb428aad"
-      alt="Sanity Trailer"
-      width="640"
-    />
-  </a>
-  <br>
-  <sub>Check out PIX ROXY's Showcase of Sanity: Descend into Madness</sub>
-</p>
+这个分支不再把理智系统当作一套完全独立的通用玩法，而是让它与 Depression 的心情、精神健康、疾病和 PTSD 协同工作：两套系统各自保存数值，只通过明确的倍率和事件联动，不相互覆盖。
 
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+- **运行环境**：Minecraft 1.21.1 · NeoForge
+- **当前分支**：`1.21.1`
+- **Mod ID**：`sanity_renewed`
+- **代码许可证**：MIT，详见 [LICENSE](LICENSE)
 
-## Configuration 👁
+## 玩法结构
 
-Sanity: Renewed itself is a very flexible mod, with multiple config options for you to tweak your gameplay and make sure the entire playthrough is well tuned to your likings. If you have any suggestions on how to improve them or want to suggest new config options/new features let me know by making a new issue tracker on my repository.
+| 系统 | 负责内容 |
+| --- | --- |
+| **Depression** | 心情、精神健康、精神疾病、PTSD，以及这些系统原有的治疗和伤害 |
+| **Sanity: Renewed 附属** | 独立理智值、脑子 HUD、理智恢复、心魔与相关表现 |
+| **DepressionTianTian（可选）** | DTT 自己的提示与扩展玩法；不是本附属的必需依赖 |
 
-The mod also includes dimension-specific configuration support through ``config/sanity_renewed/dimension/``, check ``example.toml`` to see & understand how to properly configure the mod per dimension. You're free to include this mod in your modpacks.
+理智使用面向玩家的 **S 值（0～100）**：`100` 表示头脑清醒，数值越低，认知状态越不稳定。
 
-<div align="center">
-<table>
-<tr>
-<td valign="top" width="50%">
+理智不会由精神健康值直接换算，也不会持续反写 Depression 的心情或精神健康。重度抑郁但保持清醒、精神健康尚可但理智濒临崩溃，都是允许出现的状态。
 
-**Actions that DEPLETES your sanity (configurable):**
+## 当前功能
 
-* Consuming bad food (like Rotten Flesh)
-* Getting wet (rain & ocean)
-* Receiving damage
-* Being in the dark
-* Difficult movement (Cobweb tangling)
-* Listening to bad music (like Disc 11)
-* Breaking infested blocks
-* Being near monsters/enemies
-* Hurting peaceful animals
-* Having your dog/pets die
-* Traversing between dimensions
-* Provoking Enderman
-* Being hungry
-* Being thirsty
-* Being too hot/cold
+### 独立理智与持久化
 
-</td>
+- 每名玩家分别保存理智值。
+- 退出重进、死亡重生和跨维度后保留理智，不会自动回满。
+- 客户端按真实变化同步理智与 HUD，不再按固定频率无脑发包。
+- 保留 `/sanity` 调试命令和 `/sanity link` 联动诊断。
 
-<td valign="top" width="50%">
+### 理智恢复
 
-**Actions that RESTORE your sanity (configurable):**
+当前有两种基础恢复来源，数值均可配置：
 
-* Staying fed
-* Being around your dog/pets
-* Listening to good music
-* Walking on dirt paths/carpets
-* Being near campfires
-* Sleeping through the night
-* Catching fish
-* Hatching chickens from eggs
-* Earning advancements
-* Husbandry (animal breeding/shearing)
-* Trading with villagers
-* Potting flowers
-* Wearing a Garland
+| 来源 | 默认值 | 条件 |
+| --- | --- | --- |
+| 基础恢复 | `+0.05 S/s` | 处于安全状态且环境光照足够；受当前心情影响 |
+| 营火恢复 | `+0.10 S/s` | 默认 4 格内有点燃营火且有视线；多个营火不叠加 |
 
-</td>
-</tr>
-</table>
-</div>
+心情会放慢或停止基础恢复，但**不会掐掉营火恢复**。两种来源同时满足时可以相加。
 
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+为避免与 Depression/DTT 重复奖励或重复惩罚，上游大量旧理智来源已统一收口；不要再把上游 README 中的食物、成就、宠物等整表当作本分支的当前生效清单。
 
-## Depression addon: mood, sanity and PTSD (2A)
+### 与 Depression 的双向联动
 
-When it runs next to the Depression mod, the three values talk to each other through multipliers and one-off events only. Nothing is converted, and nothing is written into Depression's mood or mental health. All numbers are in the `[sanity.link]` config section (28 keys, each with a plain-language hint) and can be overridden per dimension; a wrong dimension override (type, range, unknown key), or a combination that breaks the ordering rules (strictly descending thresholds, non-decreasing PTSD totals) in `default.toml` or in any dimension, stops the game at start-up (or makes `/sanity config reload` fail and keep the old overrides). In `default.toml` itself NeoForge puts a single out-of-range value back to its default and writes a warning to the log.
+- **心情 → 理智**：心情越差，基础理智恢复越慢；营火不受此倍率影响。
+- **理智 → 心情**：低理智会减慢负心情的回稳，并放大经过 Depression 的心理伤害。
+- **PTSD → 理智**：按一次发作的等级变化结算理智损失，默认四级累计值为 `2 / 4 / 6 / 8 S`；跨档只补差额，不按 PTSD 数值持续扣理智。
+- **表现让位**：PTSD 发作期间，心魔心跳等表现会让位于 Depression；发作结束后恢复。
 
-* **Bad mood slows the base recovery.** The calm, bright-place recovery (+0.05 S/s) is multiplied by x1 / x0.75 / x0.5 / x0 for mood >= 0 / above -5 / above -10 / at or below -10. Campfire recovery is never affected.
-* **Low sanity makes a bad mood last longer and hurts more.** Negative mood fades x1 / x0.75 / x0.5 / x0.25 as fast, and every psychological damage is x1 / x1 / x1.15 / x1.30, for sanity >= 70 / >= 40 / >= 20 / below 20. This needs a Depression build that has the multiplier hook (`MentalModifiers`); with an older build the addon logs `modifiers unavailable` and only the other two links work. The damage factor also scales Depression's smaller hits (PTSD episodes, death, pet death, insomnia) and hits that other mods send through Depression's API.
-* **PTSD costs sanity once per episode.** When the PTSD level (1 to 4, as Depression shows it) rises, you pay the difference to the next total (default totals 2 / 4 / 6 / 8 S, multiplied by `negative_multiplier`). Dropping to a lower, non-zero level does not end the episode; only the level staying at 0 for `ptsd_rearm_seconds` (default 10) in a row does, and only then the next rise costs again.
-* `/sanity link [targets]` (permission 2, read-only) prints mood, sanity, the three multipliers, what stops the base recovery and the PTSD ledger of the targets. Asking never changes anything.
+`/sanity link` 可以查看心情、理智、三项倍率、基础恢复门控和 PTSD 结算账本。该命令只读，不会改变结算状态。
 
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+### 心魔与表现层
 
-## Important Notice
-This is the 1.20+ unofficial continuation of Sanity: Descent Into Madness, originally created by croissantnova for Forge 1.16-1.20.1. The license is MIT, and i've decided to pick up the project since it hasn't been updated since 2023. Croissantnova [recently said he's working on a new project](https://github.com/croissantnova/SanityDescentIntoMadness/pull/93#issuecomment-2746349988) and he plans to get back to working on Sanity: Descent Into Madness when he deems it polished enough for publish. 
+- `S <= 40`：心魔可以显现。
+- `S <= 25`：允许生成新的心魔。
+- `S <= 13`：心魔可以攻击。
+- 心魔伤害走 Depression 已有的非玩家伤害、心情和 PTSD 路径，不另造一套重复结算。
+- 保留心魔动画、目标可见性、音效与 HUD 表现；联动诊断信息已中文化。
 
-This version is a 1:1 rewritte of Sanity: Descend Into Madness, with support for newer versions, and all major modloader (forge/neoforge/fabric). I've also implemented some of the ideas that i saw on the old repo's issue tracker. I also want to thank [Desynq](https://github.com/Desynq) for his PR on the old repository that inspired me to rewritte the mod and implement the ideas he filtered out.
+**新生成心魔默认关闭。** 需要服主在配置中显式打开：
 
-Credit goes to [croissantnova](https://www.curseforge.com/members/croissantnova/projects) for the original concept and implementation. If you enjoy this mod, consider supporting his future projects and of course, Sanity: Descend Into Madness, this project would never be here if it wasn't for his awesome work ❤️.
+```toml
+[sanity.phase3]
+inner_entity_spawning = true
+```
 
-Check the original mod's page [[here]](https://www.curseforge.com/minecraft/mc-mods/sanity-descent-into-madness), for older versions and to give the original authors support
+关闭生成开关不会删除世界里已经存在的心魔；既有实体仍按可见性和攻击阈值工作。
 
-#### Credits
-* [croissantnova](https://github.com/croissantnova) - programmer and artist,<br/>
-* [toujourspareil](https://twitter.com/toujourspareil_) - artist.
-* [Desynq](https://github.com/Desynq) - major changes & inspirations ([PR #93](https://github.com/croissantnova/SanityDescentIntoMadness/pull/93))
-* Sound effects provided by [Zapsplat](https://www.zapsplat.com/)
+## 依赖
 
-#### License
-See [license](https://raw.githubusercontent.com/croissantnova/SanityDescentIntoMadness/main/LICENSE).
+### 必需
 
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+- Minecraft **1.21.1**
+- NeoForge **21.1.x**
+- [Architectury API](https://www.curseforge.com/minecraft/mc-mods/architectury-api) **13+**
+- [GeckoLib](https://www.curseforge.com/minecraft/mc-mods/geckolib) **4.7+**，当前验证使用 **4.8.4**
+- **Depression 0.2.3+**，需使用包含当前联动挂点的配套构建
 
-## Requirements:
-This Depression addon fork currently targets **NeoForge 1.21.1 only**. The Fabric section below is retained as upstream reference and is not a supported addon target.
+### 可选
 
-NeoForge:
-* [**Architectury API**](https://www.curseforge.com/minecraft/mc-mods/architectury-api)
-* [**GeckoLib**](https://www.curseforge.com/minecraft/mc-mods/geckolib)
-* **Depression** (0.2.3+, this is a Depression addon; DepressionTianTian is optional)
+- **DepressionTianTian（DTT）**
 
-Fabric (upstream reference only):
-* [**Architectury API**](https://www.curseforge.com/minecraft/mc-mods/architectury-api)
-* [**GeckoLib**](https://www.curseforge.com/minecraft/mc-mods/geckolib)
-* [**Forge Config API Port**](https://www.curseforge.com/minecraft/mc-mods/forge-config-api-port)
+### 平台范围
 
-<p align="center"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/line_breaker2.png"  style="width:1000px;"/></p>
+本附属分支目前只支持 **NeoForge 1.21.1**。仓库中保留的 Fabric 相关内容属于上游代码背景，**不是本附属当前支持的发布目标**。
 
-<div align="center">
-  
-  <a href="https://www.patreon.com/bePatron?u=53051224"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/patreon.png" alt="Patreon" width="80"/></a>
-<a href="https://discord.com/invite/NbAJwj8RHg"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/discord.png" alt="Discord" width="80"/></a>
-<a href="https://www.youtube.com/@yesman4100"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/youtube.png" alt="YouTube" width="80"/></a>
-<a href="https://github.com/guivnf/Sanity-Renewed"><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/github.png" alt="GitHub" width="80"/></a>
-<a href=""><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/curseforge.png" alt="CurseForge" width="80"/></a>
-<a href=""><img src="https://github.com/Antikythera-Studios/EpicFight-Files/raw/Wiki-Images/Icons/new_icons/modrinth.png" alt="Modrinth" width="80"/></a>
+## 安装
 
-</div>
+1. 安装匹配版本的 Depression、Architectury API 和 GeckoLib。
+2. 将本附属的 NeoForge jar 放进 `mods`。
+3. 如需 DTT，再安装与当前 Depression 构建配套的 DTT。
+4. 启动游戏或服务端，检查日志中的 Depression 联动注册信息。
+5. 如需心魔生成，再在配置中显式开启对应开关。
+
+客户端与服务端应使用相互匹配的 Depression 和附属版本，不要把旧独立版 Sanity jar 与新附属混用。
+
+## 命令
+
+以下命令默认需要 **2 级权限**：
+
+| 命令 | 用途 |
+| --- | --- |
+| `/sanity get [targets]` | 查看理智值 |
+| `/sanity set <targets> <value>` | 将理智设为 `0～100` |
+| `/sanity add <targets> <value>` | 增减理智，最终仍限制在合法范围 |
+| `/sanity link [targets]` | 查看 Depression 联动状态与 PTSD 账本 |
+| `/sanity config reload` | 重载维度配置；非法联动配置会被拒绝并保留旧覆盖 |
+
+示例：
+
+```text
+/sanity get @s
+/sanity set @s 50
+/sanity add @s 10
+/sanity link @s
+/sanity config reload
+```
+
+不带 `targets` 的 `get`、`set`、`add` 需要由玩家本人执行；控制台或命令方块应显式指定玩家。
+
+## 配置
+
+- 默认配置：`config/sanity_renewed/default.toml`
+- 维度覆盖：`config/sanity_renewed/dimension/`
+- 维度写法参考该目录下的 `example.toml`
+
+恢复速度、联动倍率、PTSD 结算、心魔阈值与生成冷却等均通过配置调整。维度覆盖中的未知键、错误类型、越界值或破坏阈值顺序的组合会被拒绝，避免半套配置悄悄生效。
+
+## 从源码构建
+
+Depression 当前不是从公共 Maven 直接拉取，需要先在其仓库发布到本地 Maven：
+
+```bash
+gradlew :common:publishToMavenLocal
+```
+
+然后在本仓库构建 NeoForge 成品：
+
+```bash
+gradlew :neoforge:remapJar -x test --no-daemon
+```
+
+成品位于 `neoforge/build/libs/`，部署时使用正式的 `-neoforge.jar`，不要使用 `-dev-shadow.jar` 或 `-sources.jar`。
+
+## 当前进度与后续范围
+
+已完成：
+
+- 独立理智、HUD、持久化与基础/营火恢复；
+- Depression 心情、低理智与 PTSD 联动；
+- 心魔、表现层、中文化和真实客户端验证。
+
+后续 **2B** 才会处理匹配服药、过量、睡眠恢复和重复奖励来源的最终规则；这些内容目前不是已交付功能。
+
+## 致谢
+
+这个附属站在原作者和上游维护者的工作之上，衷心感谢他们：
+
+- **[croissantnova](https://github.com/croissantnova)**：原作 **Sanity: Descent Into Madness** 的作者，完成了最初的理智玩法、代码与美术设计。
+- **guivnf / [Antikythera-Studios](https://github.com/Antikythera-Studios/Sanity-Renewed)**：维护 **Sanity: Renewed**，把原作延续到较新的 Minecraft 版本，为本附属提供了直接基础。
+- **[toujourspareil](https://twitter.com/toujourspareil_)**：原作美术贡献。
+- **[Desynq](https://github.com/Desynq)**：其 [PR #93](https://github.com/croissantnova/SanityDescentIntoMadness/pull/93) 为 Renewed 的改动提供了重要启发。
+- **[Zapsplat](https://www.zapsplat.com/)**：提供上游使用的音效资源。
+
+没有他们的原设计、代码、美术和声音，就没有现在这个 Depression 附属。这里的二次改造不代表原作者或上游团队参与维护本分支，也不表示他们为本分支的联动规则背书。
+
+- 原作地址：[Sanity: Descent Into Madness](https://github.com/croissantnova/SanityDescentIntoMadness)
+- 上游地址：[Sanity: Renewed](https://github.com/Antikythera-Studios/Sanity-Renewed)
+- 本附属仓库：[sulingqingQAQ/Sanity-Renewed](https://github.com/sulingqingQAQ/Sanity-Renewed)
+
+## 许可证与资源说明
+
+代码沿用 **MIT License**，完整文本见 [LICENSE](LICENSE)，并保留原版权声明。
+
+音效仍遵循 [Zapsplat Standard License](https://www.zapsplat.com/license-type/standard-license/)；其他美术与资源沿用其各自的上游许可和权利说明，不因本次改造而重新授权。
