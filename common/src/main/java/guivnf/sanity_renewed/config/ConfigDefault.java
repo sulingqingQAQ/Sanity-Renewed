@@ -49,6 +49,21 @@ public class ConfigDefault
     public final IntValue m_ptsdRearmSeconds;
     public final BooleanValue m_ptsdLog;
 
+    public final BooleanValue m_medicineEffectEnabled;
+    public final DoubleValue m_medicineSanityTier1;
+    public final DoubleValue m_medicineSanityTier2;
+    public final DoubleValue m_medicineSanityTier3;
+    public final BooleanValue m_medicineCapByIllness;
+    public final BooleanValue m_medicineApplyTraitMultiplier;
+    public final BooleanValue m_overdosePenaltyEnabled;
+    public final DoubleValue m_overdosePenalty1;
+    public final DoubleValue m_overdosePenalty2;
+    public final DoubleValue m_overdosePenalty3;
+    public final IntValue m_overdosePauseMedicineTicks;
+    public final BooleanValue m_sleepRestoreEnabled;
+    public final DoubleValue m_sleepRestoreAmount;
+    public final BooleanValue m_sleepManiaBlocksRestore;
+
     public final BooleanValue m_phase3InnerEntitySpawning;
     public final IntValue m_phase3SpawnFailureCooldown;
     public final IntValue m_phase3SpawnRadius;
@@ -281,6 +296,51 @@ public class ConfigDefault
         m_ptsdLog = builder
                 .comment("Write one line to the server log every time PTSD costs sanity (rare, handy to check numbers in real play)")
                 .define("ptsd_log", true);
+
+        m_medicineEffectEnabled = builder
+                .comment("2B: whether on-indication Depression medicine restores sanity every 120 ticks")
+                .define("medicine_effect_enabled", true);
+        m_medicineSanityTier1 = builder
+                .comment("2B: sanity points (S) restored per 120 ticks for tier 1 (mild depression or bipolar combined therapy)")
+                .defineInRange("medicine_sanity_tier_1", 0.05, 0.0, 10.0);
+        m_medicineSanityTier2 = builder
+                .comment("2B: sanity points (S) restored per 120 ticks for tier 2 (moderate depression)")
+                .defineInRange("medicine_sanity_tier_2", 0.10, 0.0, 10.0);
+        m_medicineSanityTier3 = builder
+                .comment("2B: sanity points (S) restored per 120 ticks for tier 3 (major depression)")
+                .defineInRange("medicine_sanity_tier_3", 0.15, 0.0, 10.0);
+        m_medicineCapByIllness = builder
+                .comment("2B: cap anti-depression medicine tier by the player's current mentalHealthId (1..3) at tick time")
+                .define("medicine_cap_by_illness", true);
+        m_medicineApplyTraitMultiplier = builder
+                .comment("2B: whether to multiply medicine sanity recovery by MentalTrait.medicineEffectMultiplier (default false)")
+                .define("medicine_apply_trait_multiplier", false);
+
+        m_overdosePenaltyEnabled = builder
+                .comment("2B: whether each Depression medicine overdose event deducts sanity")
+                .define("overdose_penalty_enabled", true);
+        m_overdosePenalty1 = builder
+                .comment("2B: sanity points (S, before negative_multiplier) deducted when odCount == 1")
+                .defineInRange("overdose_penalty_1", 5.0, 0.0, 100.0);
+        m_overdosePenalty2 = builder
+                .comment("2B: sanity points (S, before negative_multiplier) deducted when odCount == 2")
+                .defineInRange("overdose_penalty_2", 10.0, 0.0, 100.0);
+        m_overdosePenalty3 = builder
+                .comment("2B: sanity points (S, before negative_multiplier) deducted when odCount >= 3 (including saturated 3 -> 3)")
+                .defineInRange("overdose_penalty_3", 15.0, 0.0, 100.0);
+        m_overdosePauseMedicineTicks = builder
+                .comment("2B: ticks after the latest overdose event during which medicine-sourced sanity recovery is paused")
+                .defineInRange("overdose_pause_medicine_ticks", 200, 0, 12000);
+
+        m_sleepRestoreEnabled = builder
+                .comment("2B: whether sleeping through the night restores sanity (independent of legacy active sources)")
+                .define("sleep_restore_enabled", true);
+        m_sleepRestoreAmount = builder
+                .comment("2B: sanity points (S) restored upon a valid night-skipping sleep")
+                .defineInRange("sleep_restore_amount", 25.0, 0.0, 100.0);
+        m_sleepManiaBlocksRestore = builder
+                .comment("2B: whether bipolar mania blocks sleep sanity restoration (matching Depression's stopSleepInBed)")
+                .define("sleep_mania_blocks_restore", true);
 
         builder.pop();
 

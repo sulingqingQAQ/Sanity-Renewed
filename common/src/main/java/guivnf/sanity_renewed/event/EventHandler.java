@@ -8,6 +8,7 @@ import guivnf.sanity_renewed.command.SanityCommand;
 import guivnf.sanity_renewed.entity.InnerEntitySpawner;
 import guivnf.sanity_renewed.net.SanitySync;
 import guivnf.sanity_renewed.passive.Jukebox;
+import guivnf.sanity_renewed.recovery.MedicineSanityCoupling;
 import dev.architectury.event.EventResult;
 import dev.architectury.event.events.common.BlockEvent;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
@@ -52,7 +53,11 @@ public final class EventHandler
 
         // Join: the first packet plus one repeat shortly after, so a first packet that reached the client
         // before its player object was ready (or got lost) heals itself. Registered once, here.
-        PlayerEvent.PLAYER_JOIN.register(SanitySync::onPlayerJoin);
+        PlayerEvent.PLAYER_JOIN.register(player ->
+        {
+            SanitySync.onPlayerJoin(player);
+            MedicineSanityCoupling.onPlayerJoin(player);
+        });
 
         // The client rebuilds its player object when the dimension changes: push the state again.
         PlayerEvent.CHANGE_DIMENSION.register((player, oldDim, newDim) ->
@@ -90,7 +95,10 @@ public final class EventHandler
         PlayerEvent.PLAYER_QUIT.register(player ->
         {
             if (player instanceof ServerPlayer sp)
+            {
                 InnerEntitySpawner.onPlayerQuit(sp);
+                MedicineSanityCoupling.onPlayerQuit(sp);
+            }
         });
         // Only the end-portal return still has to clean up here: a normal death respawn keeps a same-dimension
         // player's remaining cooldown in the clone callback above, and firing the cleanup again for it would delete
@@ -110,6 +118,7 @@ public final class EventHandler
             Jukebox.JUKEBOXES.clear();
             Jukebox.UNSETTLING_JUKEBOXES.clear();
             InnerEntitySpawner.clearAll();
+            MedicineSanityCoupling.clearAll();
         });
     }
 

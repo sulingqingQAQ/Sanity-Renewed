@@ -6,15 +6,15 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Pure description (no Minecraft types) of the 28 {@code [sanity.link]} keys of the Depression addon (2A) and the checks
- * that run when a config is loaded or reloaded. A bad value is rejected right there with the key, the value and where it
- * came from; nothing is repaired or replaced by a default.
+ * Pure description (no Minecraft types) of the 42 {@code [sanity.link]} keys of the Depression addon (2A + 2B) and the
+ * checks that run when a config is loaded or reloaded. A bad value is rejected right there with the key, the value and
+ * where it came from; nothing is repaired or replaced by a default.
  *
  * <ul>
  *   <li>{@link #checkValue}: type, finiteness and range of one value. Used for dimension overrides, which are stored raw
  *       (the default config already goes through {@code defineInRange}).</li>
  *   <li>{@link #checkCombination}: the rules that span several keys (strictly descending thresholds, monotone PTSD
- *       penalty table) for one fully resolved set of values, i.e. the default config or one dimension.</li>
+ *       penalty table) and per-key bounds for one fully resolved set of values, i.e. the default config or one dimension.</li>
  * </ul>
  * The table below is the single list that the default definitions in {@code ConfigDefault}, the proxies in
  * {@code ConfigManager} and the getters in {@code ConfigProxy} are checked against.
@@ -68,7 +68,21 @@ public final class LinkConfigSpec
             number("ptsd_penalty_3", 6.0, 0.0, 100.0),
             number("ptsd_penalty_4", 8.0, 0.0, 100.0),
             whole("ptsd_rearm_seconds", 10, 0, 300),
-            flag("ptsd_log", true));
+            flag("ptsd_log", true),
+            flag("medicine_effect_enabled", true),
+            number("medicine_sanity_tier_1", 0.05, 0.0, 10.0),
+            number("medicine_sanity_tier_2", 0.10, 0.0, 10.0),
+            number("medicine_sanity_tier_3", 0.15, 0.0, 10.0),
+            flag("medicine_cap_by_illness", true),
+            flag("medicine_apply_trait_multiplier", false),
+            flag("overdose_penalty_enabled", true),
+            number("overdose_penalty_1", 5.0, 0.0, 100.0),
+            number("overdose_penalty_2", 10.0, 0.0, 100.0),
+            number("overdose_penalty_3", 15.0, 0.0, 100.0),
+            whole("overdose_pause_medicine_ticks", 200, 0, 12000),
+            flag("sleep_restore_enabled", true),
+            number("sleep_restore_amount", 25.0, 0.0, 100.0),
+            flag("sleep_mania_blocks_restore", true));
 
     private static final Map<String, Entry> BY_KEY = new HashMap<>();
 
@@ -149,6 +163,9 @@ public final class LinkConfigSpec
      */
     public static void checkCombination(Function<String, Object> values, String origin)
     {
+        for (Entry entry : ENTRIES)
+            checkValue(entry.key(), values.apply(entry.key()), origin);
+
         double e1 = number(values, "mood_recovery_e1"), e2 = number(values, "mood_recovery_e2"), e3 = number(values, "mood_recovery_e3");
         if (!(e1 > e2 && e2 > e3))
             throw new LinkConfigException(origin + ": mood_recovery_e1 > mood_recovery_e2 > mood_recovery_e3 must hold, got "

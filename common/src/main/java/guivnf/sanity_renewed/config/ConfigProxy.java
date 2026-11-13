@@ -189,6 +189,78 @@ public abstract class ConfigProxy
         return new float[] { 0f, getPtsdPenalty1(dim), getPtsdPenalty2(dim), getPtsdPenalty3(dim), getPtsdPenalty4(dim) };
     }
 
+    // ---- sanity.link (2B) ----
+
+    public static boolean getMedicineEffectEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.medicine_effect_enabled", dim);
+    }
+
+    public static float getMedicineSanityTier1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.medicine_sanity_tier_1", dim);
+    }
+
+    public static float getMedicineSanityTier2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.medicine_sanity_tier_2", dim);
+    }
+
+    public static float getMedicineSanityTier3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.medicine_sanity_tier_3", dim);
+    }
+
+    public static boolean getMedicineCapByIllness(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.medicine_cap_by_illness", dim);
+    }
+
+    public static boolean getMedicineApplyTraitMultiplier(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.medicine_apply_trait_multiplier", dim);
+    }
+
+    public static boolean getOverdosePenaltyEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.overdose_penalty_enabled", dim);
+    }
+
+    public static float getOverdosePenalty1(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.overdose_penalty_1", dim);
+    }
+
+    public static float getOverdosePenalty2(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.overdose_penalty_2", dim);
+    }
+
+    public static float getOverdosePenalty3(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.overdose_penalty_3", dim);
+    }
+
+    public static int getOverdosePauseMedicineTicks(ResourceLocation dim)
+    {
+        return ConfigManager.proxyi("sanity.link.overdose_pause_medicine_ticks", dim);
+    }
+
+    public static boolean getSleepRestoreEnabled(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.sleep_restore_enabled", dim);
+    }
+
+    public static float getSleepRestoreAmount(ResourceLocation dim)
+    {
+        return ConfigManager.proxyd2f("sanity.link.sleep_restore_amount", dim);
+    }
+
+    public static boolean getSleepManiaBlocksRestore(ResourceLocation dim)
+    {
+        return ConfigManager.proxyb("sanity.link.sleep_mania_blocks_restore", dim);
+    }
+
     // --- config warnings (phase 3 inner entities, client heartbeat) ------------------------------
     // Both read sites run per tick, so a bad config value must not throw there. For the phase3 keys below, a key that
     // is not registered, a dimension override of the wrong type or outside the range declared in ConfigDefault

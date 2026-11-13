@@ -70,6 +70,20 @@ public abstract class ConfigManager
         proxies.put("sanity.link.ptsd_penalty_4", new ProxyValueEntry<>(() -> getDefault().m_ptsdPenalty4.get(), ConfigManager::noFinalize));
         proxies.put("sanity.link.ptsd_rearm_seconds", new ProxyValueEntry<>(() -> getDefault().m_ptsdRearmSeconds.get(), ConfigManager::noFinalize));
         proxies.put("sanity.link.ptsd_log", new ProxyValueEntry<>(() -> getDefault().m_ptsdLog.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_effect_enabled", new ProxyValueEntry<>(() -> getDefault().m_medicineEffectEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_sanity_tier_1", new ProxyValueEntry<>(() -> getDefault().m_medicineSanityTier1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_sanity_tier_2", new ProxyValueEntry<>(() -> getDefault().m_medicineSanityTier2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_sanity_tier_3", new ProxyValueEntry<>(() -> getDefault().m_medicineSanityTier3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_cap_by_illness", new ProxyValueEntry<>(() -> getDefault().m_medicineCapByIllness.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.medicine_apply_trait_multiplier", new ProxyValueEntry<>(() -> getDefault().m_medicineApplyTraitMultiplier.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.overdose_penalty_enabled", new ProxyValueEntry<>(() -> getDefault().m_overdosePenaltyEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.overdose_penalty_1", new ProxyValueEntry<>(() -> getDefault().m_overdosePenalty1.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.overdose_penalty_2", new ProxyValueEntry<>(() -> getDefault().m_overdosePenalty2.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.overdose_penalty_3", new ProxyValueEntry<>(() -> getDefault().m_overdosePenalty3.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.overdose_pause_medicine_ticks", new ProxyValueEntry<>(() -> getDefault().m_overdosePauseMedicineTicks.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sleep_restore_enabled", new ProxyValueEntry<>(() -> getDefault().m_sleepRestoreEnabled.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sleep_restore_amount", new ProxyValueEntry<>(() -> getDefault().m_sleepRestoreAmount.get(), ConfigManager::noFinalize));
+        proxies.put("sanity.link.sleep_mania_blocks_restore", new ProxyValueEntry<>(() -> getDefault().m_sleepManiaBlocksRestore.get(), ConfigManager::noFinalize));
 
         // sanity.phase3 (inner entities; all default off / conservative, dimension overridable like any other key)
         proxies.put("sanity.phase3.inner_entity_spawning", new ProxyValueEntry<>(() -> getDefault().m_phase3InnerEntitySpawning.get(), ConfigManager::noFinalize));

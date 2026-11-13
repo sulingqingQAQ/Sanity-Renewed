@@ -15,6 +15,7 @@
     "MixinFlowerPotBlock",
     "MixinJukeboxBlockEntity",
     "MixinLivingEntity",
+    "MixinMobEffectInstance",
     "MixinPig",
     "MixinPlayer",
     "MixinServerLevel",

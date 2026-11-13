@@ -28,6 +28,7 @@ import guivnf.sanity_renewed.passive.Pet;
 import guivnf.sanity_renewed.passive.PlayerCompany;
 import guivnf.sanity_renewed.passive.TemperatureExtreme;
 import guivnf.sanity_renewed.passive.Thirsty;
+import guivnf.sanity_renewed.recovery.MedicineSanityCoupling;
 import guivnf.sanity_renewed.recovery.PtsdSanityPenalty;
 import guivnf.sanity_renewed.recovery.SanityRecovery;
 import guivnf.sanity_renewed.util.MathHelper;
@@ -168,6 +169,9 @@ public final class SanityProcessor
         SanityRecovery.tick(player, s);
         // 2A: a PTSD episode reaching a higher level costs sanity once
         PtsdSanityPenalty.tick(player, s);
+        // 2B: medicine sanity recovery, overdose penalty + 200t pause window, and sleep restoration
+        MedicineSanityCoupling.tick(player, s);
+        tickSleep(s, player);
 
         if (SanitySourceGate.LEGACY_PASSIVE_SOURCES)
         {
@@ -183,7 +187,6 @@ public final class SanityProcessor
             decay(s.getItemCooldowns());
             decay(s.getBrokenBlocksCooldowns());
 
-            tickSleep(s, player);
             tickInnerEntityKillDecay(s);
         }
 
@@ -195,8 +198,12 @@ public final class SanityProcessor
     {
         if (player.isSleeping())
         {
-            if (s.getSleepTicks() == 0)
+            if (s.getSleepTicks() == 0 || s.getSleepGrace() < SLEEP_GRACE_TICKS)
+            {
+                s.setSleepTicks(0);
+                s.setSleepAwarded(false);
                 s.setSleepStartTime(player.level().getDayTime());
+            }
             s.setSleepTicks(s.getSleepTicks() + 1);
             s.setSleepGrace(SLEEP_GRACE_TICKS);
             trySleepAward(s, player);
@@ -205,6 +212,15 @@ public final class SanityProcessor
 
         if (s.getSleepGrace() > 0)
         {
+            boolean nightSkipped = player.level().getDayTime() - s.getSleepStartTime() > s.getSleepTicks() + SLEEP_SKIP_MARGIN;
+            if (!nightSkipped)
+            {
+                // Waking before the night skip ends this attempt; another player's later skip cannot complete it.
+                s.setSleepTicks(0);
+                s.setSleepGrace(0);
+                s.setSleepAwarded(false);
+                return;
+            }
             s.setSleepGrace(s.getSleepGrace() - 1);
             trySleepAward(s, player);
             return;
@@ -216,9 +232,10 @@ public final class SanityProcessor
 
     private static void trySleepAward(Sanity s, ServerPlayer player)
     {
-        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || s.isSleepAwarded() || s.getSleepTicks() < MIN_SLEEP_TICKS)
+        boolean nightSkipped = player.level().getDayTime() - s.getSleepStartTime() > s.getSleepTicks() + SLEEP_SKIP_MARGIN;
+        if (MedicineSanityCoupling.tryAwardSleep(player, s, nightSkipped))
             return;
-        if (player.level().getDayTime() - s.getSleepStartTime() <= s.getSleepTicks() + SLEEP_SKIP_MARGIN)
+        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || s.isSleepAwarded() || s.getSleepTicks() < MIN_SLEEP_TICKS || !nightSkipped)
             return;
 
         s.setSleepAwarded(true);
@@ -367,7 +384,7 @@ public final class SanityProcessor
 
     public static void handleLevelSleepCompleted(ServerLevel level)
     {
-        if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || level == null) return;
+        if (level == null) return;
         for (ServerPlayer player : level.players())
         {
             if (player.isCreative() || player.isSpectator())
@@ -377,6 +394,12 @@ public final class SanityProcessor
             if (s == null || s.isSleepAwarded() || s.getSleepTicks() < MIN_SLEEP_TICKS)
                 continue;
             if (!player.isSleeping() && s.getSleepGrace() <= 0)
+                continue;
+
+            boolean nightSkipped = level.getDayTime() - s.getSleepStartTime() > s.getSleepTicks() + SLEEP_SKIP_MARGIN;
+            if (MedicineSanityCoupling.tryAwardSleep(player, s, nightSkipped))
+                continue;
+            if (!SanitySourceGate.LEGACY_ACTIVE_SOURCES || s.getSleepTicks() < MIN_SLEEP_TICKS || !nightSkipped)
                 continue;
 
             s.setSleepAwarded(true);
@@ -595,6 +618,11 @@ public final class SanityProcessor
         if (player == null) return;
         Sanity s = SanityHolder.get(player);
         if (s == null) return;
+
+        s.setSleepTicks(0);
+        s.setSleepGrace(0);
+        s.setSleepAwarded(false);
+        s.setSleepStartTime(0L);
 
         // The client rebuilds its player object on a dimension change and starts from a blank state:
         // ask for one packet (sent from the next tick, regardless of game mode).

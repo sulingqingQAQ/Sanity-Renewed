@@ -13,6 +13,7 @@ import guivnf.sanity_renewed.config.DimensionConfig;
 import guivnf.sanity_renewed.config.LinkConfigSpec;
 import guivnf.sanity_renewed.net.SanitySync;
 import guivnf.sanity_renewed.recovery.DepressionLink;
+import guivnf.sanity_renewed.recovery.MedicineSanityCoupling;
 import guivnf.sanity_renewed.recovery.MoodCoupling;
 import guivnf.sanity_renewed.recovery.PtsdEdgeTracker;
 import guivnf.sanity_renewed.recovery.SanityRecovery;
@@ -182,6 +183,19 @@ public final class SanityCommand
             String maxText = max;
             String levelText = level;
             stack.sendSuccess(() -> Component.translatable("commands.sanity.link.ptsd", name, maxText, levelText, paid, calm), false);
+
+            MedicineSanityCoupling.MedicineDiag med = MedicineSanityCoupling.describeMedicineReadOnly(player);
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.medicine",
+                    name, med.stateText(), med.illnessText(), med.stepText(), med.capText(), med.lastGainText()), false);
+
+            MedicineSanityCoupling.OverdoseDiag od = MedicineSanityCoupling.describeOverdoseReadOnly(player);
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.overdose",
+                    name, od.odCountText(), od.sinceLastOdText(), od.pauseRemainingText(), od.lastPenaltyText()), false);
+
+            MedicineSanityCoupling.SleepDiag sleep = MedicineSanityCoupling.describeSleepReadOnly(player, s);
+            stack.sendSuccess(() -> Component.translatable("commands.sanity.link.sleep",
+                    name, sleep.statusText(), sleep.amountText(), sleep.sleepTicksText(),
+                    sleep.minSleepTicksText(), sleep.awardedText(), sleep.lastAwardText()), false);
             ++shown;
         }
         return shown;

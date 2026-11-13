@@ -3,7 +3,11 @@ package guivnf.sanity_renewed.recovery;
 import guivnf.sanity_renewed.SanityMod;
 import net.depression.mental.MentalStatus;
 import net.depression.server.Registry;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 
 /**
  * The only place of the addon that reads Depression classes on the server (hard dependency); the multiplier hook that
@@ -11,7 +15,9 @@ import net.minecraft.server.level.ServerPlayer;
  *
  * <p>Read-only: it looks at a few state flags and values and never writes Depression's mood {@code e} / mental health
  * {@code h}, and never calls {@code mentalHeal} / {@code mentalHurt}. It reads {@code e} (base recovery multiplier),
- * the window counter {@code tickCount} and the PTSD maximum (PTSD penalty), and never reads {@code h}.
+ * the window counter {@code tickCount} and the PTSD maximum (PTSD penalty), and the 2B medicine / overdose / sleep
+ * state ({@code mentalHealthId}, {@code odCount}, {@code lastOdTime}, {@code mentalIllness.isMania},
+ * {@code mentalIllness.isInsomnia}, {@code mentalTrait.medicineEffectMultiplier}), and never reads or writes {@code h}.
  *
  * <p>Two different kinds of "not there": a missing Depression state (the player has no {@link MentalStatus} yet or has
  * not chosen a mental trait) is a normal moment of the player's life cycle and is answered with a "not available"
@@ -23,8 +29,37 @@ public final class DepressionLink
     /** What this addon was written against; checked once at start-up. */
     private static final int MODIFIERS_API = 1;
 
+    public static final ResourceLocation ANTI_DEPRESSION_ID = ResourceLocation.fromNamespaceAndPath("depression", "anti_depression");
+    public static final ResourceLocation ANTI_MANIA_ID = ResourceLocation.fromNamespaceAndPath("depression", "anti_mania");
+    public static final ResourceLocation SLEEPINESS_ID = ResourceLocation.fromNamespaceAndPath("depression", "sleepiness");
+
     private static boolean apiErrorReported;
     private static boolean modifiersRegistered;
+
+    /**
+     * Read-only snapshot of a player's 2B Depression state and medicine effects on the current tick.
+     * {@code lastOdTime} is {@link Long#MIN_VALUE} when Depression's {@code MentalStatus.lastOdTime} is {@code null}.
+     */
+    public record Snapshot(
+            boolean initialized,
+            int mentalHealthId,
+            double traitMedicineMultiplier,
+            int odCount,
+            long lastOdTime,
+            boolean isMania,
+            Boolean isInsomnia,
+            boolean hasAntiDepression,
+            int antiDepressionAmplifier,
+            int antiDepressionDuration,
+            boolean hasAntiMania,
+            int antiManiaAmplifier,
+            int antiManiaDuration,
+            boolean hasSleepiness)
+    {
+        public static final Snapshot UNINITIALIZED = new Snapshot(
+                false, 0, 1.0, 0, Long.MIN_VALUE, false, null,
+                false, -1, 0, false, -1, 0, false);
+    }
 
     private DepressionLink() {}
 
@@ -86,6 +121,85 @@ public final class DepressionLink
     }
 
     /**
+     * Reads a read-only 2B snapshot of the player's Depression illness, overdose state and active medicine effects.
+     * Never writes any Depression field or calls {@code mentalHeal} / {@code mentalHurt}.
+     */
+    public static Snapshot readSnapshot(ServerPlayer player)
+    {
+        if (player == null)
+            return Snapshot.UNINITIALIZED;
+        try
+        {
+            MentalStatus status = Registry.mentalStatus.get(player.getUUID());
+            if (status == null || status.mentalTrait == null || status.mentalIllness == null)
+                return Snapshot.UNINITIALIZED;
+
+            double traitMul = status.mentalTrait.medicineEffectMultiplier;
+            long lastOd = status.mentalIllness.lastOdTime == null ? Long.MIN_VALUE : status.mentalIllness.lastOdTime;
+            boolean isMania = status.mentalIllness.isMania;
+            Boolean isInsomnia = status.mentalIllness.isInsomnia;
+
+            boolean hasAntiDep = false;
+            int antiDepAmp = -1;
+            int antiDepDur = 0;
+            boolean hasAntiMania = false;
+            int antiManiaAmp = -1;
+            int antiManiaDur = 0;
+            boolean hasSleepiness = false;
+
+            for (MobEffectInstance inst : player.getActiveEffects())
+            {
+                if (inst == null || inst.getDuration() <= 0)
+                    continue;
+                Holder<MobEffect> holder = inst.getEffect();
+                if (holder == null)
+                    continue;
+                if (holder.is(ANTI_DEPRESSION_ID))
+                {
+                    hasAntiDep = true;
+                    antiDepAmp = inst.getAmplifier();
+                    antiDepDur = inst.getDuration();
+                }
+                else if (holder.is(ANTI_MANIA_ID))
+                {
+                    hasAntiMania = true;
+                    antiManiaAmp = inst.getAmplifier();
+                    antiManiaDur = inst.getDuration();
+                }
+                else if (holder.is(SLEEPINESS_ID))
+                {
+                    hasSleepiness = true;
+                }
+            }
+
+            return new Snapshot(
+                    true,
+                    status.mentalIllness.mentalHealthId,
+                    traitMul,
+                    status.mentalIllness.odCount,
+                    lastOd,
+                    isMania,
+                    isInsomnia,
+                    hasAntiDep,
+                    antiDepAmp,
+                    antiDepDur,
+                    hasAntiMania,
+                    antiManiaAmp,
+                    antiManiaDur,
+                    hasSleepiness);
+        }
+        catch (LinkageError e)
+        {
+            if (!apiErrorReported)
+            {
+                apiErrorReported = true;
+                SanityMod.LOGGER.error("[{}] Depression API does not match what this addon was built against; 2B medicine/sleep coupling is disabled", SanityMod.MOD_ID, e);
+            }
+            return Snapshot.UNINITIALIZED;
+        }
+    }
+
+    /**
      * Start-up, called once from {@code SanityMod.init}: checks that the Depression API this addon reads is the expected
      * one (the game stops with a clear message otherwise), then registers the multiplier hook when this Depression build
      * has one. An older build without {@code MentalModifiers} is a supported setup: it logs one line and sanity then does
@@ -138,11 +252,23 @@ public final class DepressionLink
             status.getField("tickCount");
             status.getField("ptsdManager");
             status.getField("mentalTrait");
+            status.getField("mentalIllness");
+
+            Class<?> trait = Class.forName("net.depression.mental.MentalTrait", false, loader);
+            trait.getField("medicineEffectMultiplier");
+
+            Class<?> illness = Class.forName("net.depression.mental.MentalIllness", false, loader);
+            illness.getField("mentalHealthId");
+            illness.getField("odCount");
+            illness.getField("lastOdTime");
+            illness.getField("isMania");
+            illness.getField("isInsomnia");
         }
         catch (ReflectiveOperationException e)
         {
             throw new IllegalStateException("Sanity: Renewed needs a Depression build with the PTSD level API (PTSDManager.getCurrentMaxPTSDValue, "
-                    + "PTSD_n_VALUE) and the MentalStatus fields emotionValue / tickCount / ptsdManager / mentalTrait; this one does not have them", e);
+                    + "PTSD_n_VALUE), the MentalStatus fields emotionValue / tickCount / ptsdManager / mentalTrait / mentalIllness, "
+                    + "MentalTrait.medicineEffectMultiplier and MentalIllness.mentalHealthId / odCount / lastOdTime / isMania / isInsomnia; this one does not have them", e);
         }
     }
 
